@@ -11,6 +11,13 @@ from numba import njit
 from bksltk.fingerprints import get_tc
 
 
+def load_from_pickle(fn):
+    with open(fn, 'rb') as f:
+        obj = pickle.load(f)
+        assert isinstance(obj, CSAlgo)
+        return obj
+
+
 class CSAlgo:
     """ Main class for the CHEM-STEP algorithm. Parameters are set, jobs are created, results are pooled,
         basically everything is handled by a single CSAlgo object. The object can be built from a previously pickled
@@ -23,10 +30,12 @@ class CSAlgo:
     """
     def __init__(self, fp_lib, csc_params, output_directory, n_proc, use_pickle=False, scores_fns=None, ids_fns=None,
                  verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
-                 hit_score_thresh=None, write_complete_info=False, complete_info_dir=None):
+                 hit_score_thresh=None, write_complete_info=False, complete_info_dir=None, docking_method="lookup",
+                 use_maxdiv=False, smi_id_prefix="ANION", smi_id_offset=1, smi_id_nzeros=10, pickle_prefix=None):
         if use_pickle:
-            raise ValueError("Using pickle not yet implemented...")
-            # TODO: implement pickling
+            assert pickle_prefix is not None
+        self.use_pickle = use_pickle
+        self.pickle_prefix = pickle_prefix
         assert isinstance(fp_lib, FpLibrary)
         self.fp_lib = fp_lib
         if isinstance(csc_params, CSParams):
@@ -51,6 +60,11 @@ class CSAlgo:
         self.df_name = df_name
         self.scores_dir = scores_dir
         self.hit_score_thresh = hit_score_thresh
+        self.docking_method = docking_method
+        self.use_maxdiv = use_maxdiv
+        self.smi_id_prefix = smi_id_prefix
+        self.smi_id_offset = smi_id_offset
+        self.smi_id_nzeros = smi_id_nzeros
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
             self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.params.max_n_rounds,
@@ -60,37 +74,61 @@ class CSAlgo:
         self.print_verbose("ChainingLog set")
         self.score_thresh = None
         self.unused_beacons = []
+        self.used_beacons_fps = np.zeros((self.params.max_n_rounds * self.params.max_beacons,
+                                          self.fp_lib.fp_length_bytes), dtype=np.uint8)
+        self.used_beacons_count = 0
 
     def print_verbose(self, s):
         if self.verbose:
             print(s)
 
+    def run_one_round(self, round_n, scores_dict):
+        beacons = self.get_beacons(scores_dict, round_n)
+        self.print_verbose("Starting round {}".format(round_n))
+        jobs = []
+        for j in range(self.fp_lib.n_files):
+            unique_id = "{}_{}".format(round_n, j)
+            job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j)
+            jobs.append(job)
+        self.run_local(jobs)
+        self.print_verbose("Starting docking for round {}".format(round_n))
+        lib_array_indices, smi_list = self.get_todock_list(round_n)
+        self.used_beacons_fps[self.used_beacons_count:self.used_beacons_count+len(beacons)] = beacons
+        self.used_beacons_count += len(beacons)
+        if self.docking_method == "lookup":
+            scores_dict = self.lookup_dock(lib_array_indices, smi_list, round_n)
+        elif self.docking_method == "manual":
+            self.write_smi_file(smi_list, lib_array_indices, round_n)
+            scores_dict = None
+        else:  # TODO: allow other docking methods
+            raise ValueError("Docking method {} not yet implemented".format(self.docking_method))
+        if self.write_df:
+            write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.hit_score_thresh, self.df_name)
+        if self.use_pickle:
+            with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
+                pickle.dump(self, f)
+        return scores_dict
+
+    def write_smi_file(self, smi_list, lib_array_indices, round_n):
+        with open("{}/smi_round_{}.smi".format(self.complete_info_dir, round_n), 'w') as f:
+            for smi, lib_arr in zip(smi_list, lib_array_indices):
+                full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
+                f.write(f'{smi} {self.smi_id_prefix}{full_index+self.smi_id_offset:0{self.smi_id_nzeros}d}\n')
+
     def linking_loop(self):
         if self.params.screen_novelty:
             self.screen_novelty()
         with open(self.params.seed_scores_file, 'rb') as f:
-            seed_scores_dict = pickle.load(f)
-        self.set_score_thresh(seed_scores_dict)
-        beacons = self.get_beacons(seed_scores_dict)
+            scores_dict = pickle.load(f)
+        self.set_score_thresh(scores_dict)
         for i in range(1, self.params.max_n_rounds+1):
-            self.print_verbose("Starting round {}".format(i))
-            jobs = []
-            for j in range(self.fp_lib.n_files):
-                unique_id = "{}_{}".format(i, j)
-                job = SearchJob(unique_id, beacons, i, self.fp_lib, self.chaining_log, j)
-                jobs.append(job)
-            self.run_local(jobs)
-            self.print_verbose("Starting docking for round {}".format(i))
-            scores_dict = self.lookup_dock(i)  # TODO: allow other docking methods
-            if self.write_df:
-                write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.hit_score_thresh, self.df_name)
-            beacons = self.get_beacons(scores_dict)
+            scores_dict = self.run_one_round(i, scores_dict)
 
     def run_local(self, jobs):
         p = Pool(self.n_proc)
         p.map(_run_one_job_local, jobs)
 
-    def lookup_dock(self, round_n):
+    def get_todock_list(self, round_n):
         mintd_distrib = self.chaining_log.load_global_mintd_distrib(round_n)
         if self.write_complete_info:
             with open("{}/mintd_distrib_{}.df".format(self.complete_info_dir, round_n), 'w') as f:
@@ -121,6 +159,9 @@ class CSAlgo:
             self.chaining_log.add_exclusions(exclusions, lib_index, round_n)
             self.print_verbose("Getting to_dock list, lib_index {}".format(lib_index))
         lib_array_indices = lib_array_indices[:n_todock]
+        return lib_array_indices, smi_list
+
+    def lookup_dock(self, lib_array_indices, smi_list, round_n):
         self.print_verbose("About to start 'docking'")
         docker = LookupDocking(lib_array_indices, smi_list, self.scores_fns, self.fp_lib, verbose=self.verbose)
         docker.dock_all()
@@ -157,7 +198,7 @@ class CSAlgo:
                 exclusions[arr_i] = 1
             self.chaining_log.add_exclusions(exclusions, lib_i, 0)
 
-    def get_beacons(self, scores_dict):
+    def get_beacons(self, scores_dict, round_n):
         beacons_indices = []
         beacons_scores = []
         for index in scores_dict:
@@ -173,6 +214,11 @@ class CSAlgo:
             n_beacons = len(self.unused_beacons)
 
         beacons = filtered_fps[:n_beacons]
+        if self.write_complete_info:
+            with open(f"{self.complete_info_dir}/beacons_round_{round_n}.df", 'w') as f:
+                f.write("index score\n")
+                for score, index in self.unused_beacons[:n_beacons]:
+                    f.write(f"{index} {score}\n")
         self.unused_beacons = self.unused_beacons[n_beacons:]
         return beacons
 
@@ -180,6 +226,15 @@ class CSAlgo:
         raise ValueError("screen_novelty() not yet implemented")
 
     def apply_beacons_diversity(self):
+        if self.use_maxdiv:
+            return self.apply_beacons_diversity_maxdiv()
+        else:
+            return self.apply_beacons_diversity_distthresh()
+
+    def apply_beacons_diversity_maxdiv(self):
+        raise ValueError("apply_beacons_diversity_maxdiv() not yet implemented")
+
+    def apply_beacons_diversity_distthresh(self):
         dist_thresh = self.params.diversity_dist_thresh
 
         # fingerprints for all unused beacons
@@ -210,6 +265,10 @@ class CSAlgo:
                 mindist = 2
                 for j in range(count):
                     dist = 1 - get_tc(curr_fp, kept_fps[j])
+                    if dist < mindist:
+                        mindist = dist
+                for j in range(self.used_beacons_count):
+                    dist = 1 - get_tc(curr_fp, self.used_beacons_fps[j])
                     if dist < mindist:
                         mindist = dist
                 if mindist >= dist_thresh:

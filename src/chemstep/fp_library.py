@@ -1,6 +1,14 @@
 import numpy as np
-from csch.utils import read_np_data
+from chemstep.utils import read_np_data
 from numba import njit
+import pickle
+
+
+def load_library_from_pickle(fn):
+    with open(fn, 'rb') as f:
+        obj = pickle.load(f)
+        assert isinstance(obj, FpLibrary)
+        return obj
 
 
 class FpLibrary:
@@ -17,7 +25,8 @@ class FpLibrary:
             fp_length_bytes (int): The number of bytes in each fingerprint (must be all the same for a given library)
     """
 
-    def __init__(self, fingerprint_files, id_files, smi_files, fp_prefix="fps", id_prefix="zids", smi_prefix="smi"):
+    def __init__(self, fingerprint_files, id_files, smi_files, outname, fp_prefix="fps", id_prefix="zids",
+                 smi_prefix="smi"):
         assert len(fingerprint_files) == len(id_files)
         self.n_files = len(fingerprint_files)
         self.fp_files = fingerprint_files
@@ -32,6 +41,10 @@ class FpLibrary:
         self.n_mols = None
         self.fp_length_bytes = None
         self._validate()
+        if not outname.endswith('.pickle'):
+            outname += '.pickle'
+        with open(outname, 'wb') as f:
+            pickle.dump(self, f)
 
     def _validate(self):
         for i in range(self.n_files):
@@ -48,7 +61,7 @@ class FpLibrary:
                 raise ValueError(
                     "Problem with library files naming convention: fp file {} does not match id file {}".format(
                         fp_file, id_file))
-            if fp_name[len(self.fp_prefix):] != smi_name[len(self.smi_prefix):]:
+            if fp_name[len(self.fp_prefix):].split('.')[0] != smi_name[len(self.smi_prefix):].split('.')[0]:
                 raise ValueError(
                     "Problem with library files naming convention: fp file {} does not match smi file {}".format(
                         fp_file, smi_file))
@@ -56,11 +69,10 @@ class FpLibrary:
             self.suffixes.append(split_fp[0])  # allows other extensions than .npy (e.g. .npz)
             self.extensions.append(split_fp[1])
             assert id_file.endswith("{}{}.{}".format(self.id_prefix, self.suffixes[-1], self.extensions[-1]))
-            assert smi_file.endswith("{}{}.{}".format(self.smi_prefix, self.suffixes[-1], self.extensions[-1]))
+            # assert smi_file.endswith("{}{}.{}".format(self.smi_prefix, self.suffixes[-1], self.extensions[-1]))
             fps_data = read_np_data(fp_file)
             ids_data = read_np_data(id_file)
-            smi_data = read_np_data(smi_file)
-            assert fps_data.shape[0] == ids_data.shape[0] == smi_data.shape[0]
+            assert fps_data.shape[0] == ids_data.shape[0]
             self.lengths.append(fps_data.shape[0])
             if self.fp_length_bytes is None:
                 self.fp_length_bytes = fps_data.shape[1]
@@ -68,10 +80,10 @@ class FpLibrary:
                 assert fps_data.shape[1] == self.fp_length_bytes
             assert ids_data.dtype == np.int64
             assert fps_data.dtype == np.uint8
-            if not str(smi_data.dtype).startswith('|S'):
-                raise ValueError("Problem with dtype of SMILES data in " +
-                                 "{} (str representation should start with |S but is {} instead)".format(
-                                     smi_file, smi_data.dtype))
+            # if not str(smi_data.dtype).startswith('|S'):
+            #     raise ValueError("Problem with dtype of SMILES data in " +
+            #                      "{} (str representation should start with |S but is {} instead)".format(
+            #                          smi_file, smi_data.dtype))
         self.lengths = np.array(self.lengths, dtype=np.int64)
         self.n_mols = sum(self.lengths)
 
@@ -82,13 +94,12 @@ class FpLibrary:
         return np.load(self.fp_files[lib_index])
 
     def load_smiles(self, lib_index):
-        return np.load(self.smi_files[lib_index])
+        with open(self.smi_files[lib_index]) as f:
+            lines = f.readlines()
+        return [line.strip() for line in lines]
 
     def load_smiles_indices(self, lib_index, indices):
-        # smi_mmap = np.load(self.smi_files[lib_index], mmap_mode='r')
-        # return smi_mmap[indices]
-        fn = self.smi_files[lib_index].replace('.npy', '.txt')
-        with open(fn) as f:
+        with open(self.smi_files[lib_index]) as f:
             lines = f.readlines()
         return [lines[i].strip() for i in indices]
 

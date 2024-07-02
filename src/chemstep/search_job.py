@@ -1,5 +1,5 @@
-from csch.fp_library import FpLibrary
-from csch.chaining_log import ChainingLog
+from chemstep.fp_library import FpLibrary
+from chemstep.chaining_log import ChainingLog
 from bksltk.fingerprints import get_tanimoto_max_excl
 
 

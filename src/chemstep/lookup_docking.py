@@ -1,5 +1,5 @@
-from csch.docking_algorithm import DockingAlgorithm
-from csch.fp_library import FpLibrary
+from chemstep.docking_algorithm import DockingAlgorithm
+from chemstep.fp_library import FpLibrary
 import numpy as np
 
 
