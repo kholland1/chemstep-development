@@ -8,7 +8,7 @@ from chemstep.stats import write_stats_df
 import pickle
 from multiprocessing import Pool
 from numba import njit
-from bksltk.fingerprints import get_tc
+from bksltk.fingerprints import get_tc, get_tanimoto_max
 
 
 def load_from_pickle(fn):
@@ -95,6 +95,7 @@ class CSAlgo:
         lib_array_indices, smi_list = self.get_todock_list(round_n)
         self.used_beacons_fps[self.used_beacons_count:self.used_beacons_count+len(beacons)] = beacons
         self.used_beacons_count += len(beacons)
+
         if self.docking_method == "lookup":
             scores_dict = self.lookup_dock(lib_array_indices, smi_list, round_n)
         elif self.docking_method == "manual":
@@ -102,8 +103,10 @@ class CSAlgo:
             scores_dict = None
         else:  # TODO: allow other docking methods
             raise ValueError("Docking method {} not yet implemented".format(self.docking_method))
+
         if self.write_df:
             write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.hit_score_thresh, self.df_name)
+
         if self.use_pickle:
             with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
                 pickle.dump(self, f)
@@ -231,14 +234,10 @@ class CSAlgo:
         else:
             return self.apply_beacons_diversity_distthresh()
 
-    def apply_beacons_diversity_maxdiv(self):
-        raise ValueError("apply_beacons_diversity_maxdiv() not yet implemented")
-
-    def apply_beacons_diversity_distthresh(self):
-        dist_thresh = self.params.diversity_dist_thresh
-
+    def load_all_fps_unused_beacons(self):
         # fingerprints for all unused beacons
         all_fps = np.zeros((len(self.unused_beacons), self.fp_lib.fp_length_bytes), dtype=np.uint8)
+
         # dict of dicts to untangle library indices
         lib_arr_dict = dict()
 
@@ -252,6 +251,26 @@ class CSAlgo:
             fps = self.fp_lib.load_fps(lib_index)
             for arr_index in lib_arr_dict[lib_index]:
                 all_fps[lib_arr_dict[lib_index][arr_index]] = fps[arr_index]
+        return all_fps
+
+    def apply_beacons_diversity_maxdiv(self):
+        # TODO: test this
+        all_fps = self.load_all_fps_unused_beacons()
+        distance_vector = 1 - get_tanimoto_max(self.used_beacons_fps, all_fps)
+        selected = np.zeros(len(all_fps), dtype=np.uint8)
+        kept_beacons = []
+        while len(kept_beacons) < self.params.max_beacons and np.sum(selected) < len(selected):
+            max_index = np.argmax(distance_vector)
+            selected[max_index] = 1
+            kept_beacons.append(self.unused_beacons[max_index])
+            distance_vector = np.minimum(distance_vector, 1 - get_tc(np.array([all_fps[max_index]]), all_fps))
+        self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
+        return all_fps[selected == 0]
+
+    def apply_beacons_diversity_distthresh(self, use_previous_beacons=True):
+        dist_thresh = self.params.diversity_dist_thresh
+
+        all_fps = self.load_all_fps_unused_beacons()
 
         if dist_thresh == 0:
             return all_fps
