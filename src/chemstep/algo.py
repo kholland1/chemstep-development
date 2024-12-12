@@ -30,8 +30,8 @@ class CSAlgo:
     """
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=False, scores_fns=None,
                  ids_fns=None, verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
-                 hit_score_thresh=None, write_complete_info=False, complete_info_dir=None, docking_method="lookup",
-                 use_maxdiv=False, smi_id_prefix="ANION", smi_id_offset=1, smi_id_nzeros=10, pickle_prefix=None):
+                 hit_score_thresh=None, write_complete_info=False, complete_info_dir=None, docking_method="manual",
+                 use_maxdiv=False, smi_id_prefix="ZWIT", smi_id_offset=0, smi_id_nzeros=9, pickle_prefix=None):
         if use_pickle:
             assert pickle_prefix is not None
         self.use_pickle = use_pickle
