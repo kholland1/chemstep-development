@@ -28,8 +28,8 @@ class CSAlgo:
             params (CSParams): The parameters for this run of CSC
             chaining_log (ChainingLog): The object doing the bookkeeping as the rounds progress
     """
-    def __init__(self, fp_lib, csc_params, output_directory, n_proc, use_pickle=False, scores_fns=None, ids_fns=None,
-                 verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
+    def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=False, scores_fns=None,
+                 ids_fns=None, verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
                  hit_score_thresh=None, write_complete_info=False, complete_info_dir=None, docking_method="lookup",
                  use_maxdiv=False, smi_id_prefix="ANION", smi_id_offset=1, smi_id_nzeros=10, pickle_prefix=None):
         if use_pickle:
@@ -38,12 +38,12 @@ class CSAlgo:
         self.pickle_prefix = pickle_prefix
         assert isinstance(fp_lib, FpLibrary)
         self.fp_lib = fp_lib
-        if isinstance(csc_params, CSParams):
-            self.params = csc_params
-        elif isinstance(csc_params, str):
-            self.params = read_param_file(csc_params)
+        if isinstance(chemstep_params, CSParams):
+            self.params = chemstep_params
+        elif isinstance(chemstep_params, str):
+            self.params = read_param_file(chemstep_params)
         else:
-            raise ValueError("csc_params has to be a string path to a parameter file or an instance of CSParams")
+            raise ValueError("chemstep_params has to be a string path to a parameter file or an instance of CSParams")
         self.scores_fns = scores_fns
         self.ids_fns = ids_fns
         self.n_proc = n_proc

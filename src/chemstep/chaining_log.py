@@ -5,7 +5,7 @@ import os
 
 
 class ChainingLog:
-    """ Class that does all the necessary bookkeeping for a given instance of CSC as it runs through several rounds.
+    """ Class that does all the necessary bookkeeping for an instance of ChemSTEP as it runs through several rounds.
     """
 
     def __init__(self, fp_library, log_folder, max_n_rounds, exclusion_prefix="excl", mintd_prefix="mintds",

@@ -44,7 +44,7 @@ def read_param_file(param_file):
 
 
 class CSParams:
-    """ Class storing a parameter set for a run of the CSC algorithm.
+    """ Class storing a parameter set for a run of the ChemSTEP algorithm.
 
         Attributes:
             seed_scores_file (str): The filename for the initial set of scored (docked) molecules, as either a
