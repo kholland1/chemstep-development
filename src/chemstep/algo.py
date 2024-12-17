@@ -19,7 +19,7 @@ def load_from_pickle(fn):
 
 
 class CSAlgo:
-    """ Main class for the CHEM-STEP algorithm. Parameters are set, jobs are created, results are pooled,
+    """ Main class for the ChemSTEP algorithm. Parameters are set, jobs are created, results are pooled,
         basically everything is handled by a single CSAlgo object. The object can be built from a previously pickled
         representation, which makes restarting/continuing easier.
 
@@ -263,7 +263,7 @@ class CSAlgo:
             max_index = np.argmax(distance_vector)
             selected[max_index] = 1
             kept_beacons.append(self.unused_beacons[max_index])
-            distance_vector = np.minimum(distance_vector, 1 - get_tc(np.array([all_fps[max_index]]), all_fps))
+            distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
         return all_fps[selected == 0]
 
