@@ -256,7 +256,10 @@ class CSAlgo:
     def apply_beacons_diversity_maxdiv(self):
         # TODO: test this
         all_fps = self.load_all_fps_unused_beacons()
-        distance_vector = 1 - get_tanimoto_max(self.used_beacons_fps, all_fps)
+        if self.used_beacons_count > 0:
+            distance_vector = 1 - get_tanimoto_max(self.used_beacons_fps[:self.used_beacons_count], all_fps)
+        else:
+            distance_vector = np.ones(len(all_fps))
         selected = np.zeros(len(all_fps), dtype=np.uint8)
         kept_beacons = []
         while len(kept_beacons) < self.params.max_beacons and np.sum(selected) < len(selected):
@@ -294,7 +297,7 @@ class CSAlgo:
                     kept_fps[count] = curr_fp
                     kept_beacons.append(self.unused_beacons[i])
                     count += 1
-            self.unused_beacons = kept_beacons
+            self.unused_beacons = kept_beacons  # TODO: this seems wrong? Mostly using maxdiv for now so doesn't matter
             return kept_fps
 
 
