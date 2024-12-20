@@ -268,7 +268,7 @@ class CSAlgo:
             kept_beacons.append(self.unused_beacons[max_index])
             distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
-        return all_fps[selected == 0]
+        return all_fps[selected == 1]
 
     def apply_beacons_diversity_distthresh(self, use_previous_beacons=True):
         dist_thresh = self.params.diversity_dist_thresh
