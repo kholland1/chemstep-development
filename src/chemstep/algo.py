@@ -118,18 +118,29 @@ class CSAlgo:
                 full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
                 f.write(f'{smi} {self.smi_id_prefix}{full_index+self.smi_id_offset:0{self.smi_id_nzeros}d}\n')
 
-    def linking_loop(self):
+    def linking_loop(self, score_thresh=None):
         if self.params.screen_novelty:
             self.screen_novelty()
         with open(self.params.seed_scores_file, 'rb') as f:
             scores_dict = pickle.load(f)
-        self.set_score_thresh(scores_dict)
+        if score_thresh is None:
+            self.set_score_thresh(scores_dict)
+        else:
+            self.score_thresh = score_thresh
         for i in range(1, self.params.max_n_rounds+1):
             scores_dict = self.run_one_round(i, scores_dict)
 
     def run_local(self, jobs):
         p = Pool(self.n_proc)
         p.map(_run_one_job_local, jobs)
+
+    def run_slurm_array(self, jobs):
+        # TODO: implement
+        pass
+
+    def run_sge_array(self, jobs):
+        # TODO: implement
+        pass
 
     def get_todock_list(self, round_n):
         mintd_distrib = self.chaining_log.load_global_mintd_distrib(round_n)
