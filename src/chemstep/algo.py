@@ -126,7 +126,7 @@ class CSAlgo:
         if score_thresh is None:
             self.set_score_thresh(scores_dict)
         else:
-            self.score_thresh = score_thresh
+            self.hit_score_thresh = score_thresh
         for i in range(1, self.params.max_n_rounds+1):
             scores_dict = self.run_one_round(i, scores_dict)
 
