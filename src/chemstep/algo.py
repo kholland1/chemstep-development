@@ -184,11 +184,20 @@ class CSAlgo:
         self.print_verbose("SCORES_ROUND_{}: {}".format(round_n, score_list))
         self.print_verbose("SMILES_ROUND_{}: {}".format(round_n, smi_list))
         scores_dict = dict()
+        full_ids, scores = [], []
         for (lib_index, arr_index), score in zip(lib_array_indices, score_list):
             full_id = self.fp_lib.get_full_index(lib_index, arr_index)
             if full_id in scores_dict:
                 raise ValueError("This one already in: {} (from ({}, {}))".format(full_id, lib_index, arr_index))
             scores_dict[full_id] = score
+            if score <= self.hit_score_thresh:
+                full_ids.append(full_id)
+                scores.append(score)
+        if self.write_complete_info:
+            with open(f"{self.complete_info_dir}/hits_round_{round_n}.df", 'w') as f:
+                f.write("full_id score\n")
+                for full_id, score in zip(full_ids, scores):
+                    f.write(f"{full_id} {score}\n")
         return scores_dict
 
     def set_score_thresh(self, seed_scores_dict):
