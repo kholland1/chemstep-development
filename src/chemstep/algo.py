@@ -30,7 +30,7 @@ class CSAlgo:
     """
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=False, scores_fns=None,
                  ids_fns=None, verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
-                 hit_score_thresh=None, write_complete_info=False, complete_info_dir=None, docking_method="manual",
+                 write_complete_info=False, complete_info_dir=None, docking_method="manual",
                  use_maxdiv=False, smi_id_prefix="ZWIT", smi_id_offset=0, smi_id_nzeros=9, pickle_prefix=None):
         if use_pickle:
             assert pickle_prefix is not None
@@ -56,10 +56,8 @@ class CSAlgo:
         if write_df:
             assert df_name is not None
             assert scores_dir is not None
-            assert hit_score_thresh is not None
         self.df_name = df_name
         self.scores_dir = scores_dir
-        self.hit_score_thresh = hit_score_thresh
         self.docking_method = docking_method
         self.use_maxdiv = use_maxdiv
         self.smi_id_prefix = smi_id_prefix
@@ -104,7 +102,7 @@ class CSAlgo:
             raise ValueError("Docking method {} not yet implemented".format(self.docking_method))
 
         if self.write_df:
-            write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.hit_score_thresh, self.df_name)
+            write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.score_thresh, self.df_name)
 
         if self.use_pickle:
             with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
@@ -125,7 +123,7 @@ class CSAlgo:
         if score_thresh is None:
             self.set_score_thresh(scores_dict)
         else:
-            self.hit_score_thresh = score_thresh
+            self.score_thresh = score_thresh
         for i in range(1, self.params.max_n_rounds+1):
             scores_dict = self.run_one_round(i, scores_dict)
 
@@ -142,7 +140,7 @@ class CSAlgo:
         pass
 
     def get_todock_list(self, round_n):
-        mintd_distrib = self.chaining_log.load_global_mintd_distrib(round_n)
+        mintd_distrib = self.chaining_log.load_global_mintd_distrib()
         if self.write_complete_info:
             with open("{}/mintd_distrib_{}.df".format(self.complete_info_dir, round_n), 'w') as f:
                 f.write("mintd count\n")
@@ -163,13 +161,13 @@ class CSAlgo:
         n_todock = 0
         smi_list = []
         for lib_index in range(self.fp_lib.n_files):  # TODO: make parallel ( if necessary)
-            mintds = self.chaining_log.load_mintds(lib_index, round_n)
-            exclusions = self.chaining_log.load_exclusions(lib_index, round_n - 1)
+            mintds = self.chaining_log.load_mintds(lib_index)
+            exclusions = self.chaining_log.load_exclusions(lib_index)
             n_todock, indices = _get_todock_libarray_indices(lib_array_indices, mintds, exclusions, mintd_thresh,
                                                              lib_index, n_todock)
             smiles = self.fp_lib.load_smiles_indices(lib_index, indices)
             smi_list += [x for x in smiles]
-            self.chaining_log.add_exclusions(exclusions, lib_index, round_n)
+            self.chaining_log.add_exclusions(exclusions, lib_index)
             self.print_verbose("Getting to_dock list, lib_index {}".format(lib_index))
         lib_array_indices = lib_array_indices[:n_todock]
         return lib_array_indices, smi_list
@@ -189,7 +187,7 @@ class CSAlgo:
             if full_id in scores_dict:
                 raise ValueError("This one already in: {} (from ({}, {}))".format(full_id, lib_index, arr_index))
             scores_dict[full_id] = score
-            if score <= self.hit_score_thresh:
+            if score <= self.score_thresh:
                 full_ids.append(full_id)
                 scores.append(score)
         if self.write_complete_info:
@@ -218,7 +216,7 @@ class CSAlgo:
             exclusions = np.zeros(self.fp_lib.lengths[lib_i], dtype=np.uint8)
             for arr_i in lib_arr_dict[lib_i]:
                 exclusions[arr_i] = 1
-            self.chaining_log.add_exclusions(exclusions, lib_i, 0)
+            self.chaining_log.add_exclusions(exclusions, lib_i)
 
     def get_beacons(self, scores_dict, round_n):
         beacons_indices = []
