@@ -21,7 +21,7 @@ class SearchJob:
 
     def run_local(self):
         database_array = self.lib.load_fps(self.lib_index)
-        exclusions = self.chaining_log.load_exclusions(self.lib_index, self.round_n - 1)
+        exclusions = self.chaining_log.load_exclusions(self.lib_index)
         mintds = 1 - get_tanimoto_max_excl(self.beacons, database_array, exclusions)
-        self.chaining_log.add_mintds(mintds, self.lib_index, self.round_n)
+        self.chaining_log.add_mintds(mintds, self.lib_index)
 

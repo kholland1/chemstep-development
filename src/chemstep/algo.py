@@ -67,10 +67,9 @@ class CSAlgo:
         self.smi_id_nzeros = smi_id_nzeros
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.params.max_n_rounds,
-                                            write_empty_files=False)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory, write_empty_files=False)
         else:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.params.max_n_rounds)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory)
         self.print_verbose("ChainingLog set")
         self.score_thresh = None
         self.unused_beacons = []

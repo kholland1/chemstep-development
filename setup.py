@@ -8,7 +8,7 @@ with open(os.path.join(HERE, "README.md")) as f:
 
 setuptools.setup(
     name="chemstep",
-    version="0.0.3",
+    version="0.1.0",
     author="Olivier Mailhot",
     description="chemstep package",
     long_description=README,
