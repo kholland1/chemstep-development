@@ -85,7 +85,8 @@ class ChainingLog:
         self._check_index(index)
         filename = self.get_filename(self.mintd_prefix, self.get_suffix(index))
         data = np.load(filename)
-        data = update_mintds(data, mintds)
+        exclusions = self.load_exclusions(index)
+        data = update_mintds(data, mintds, exclusions)
         np.save(filename, data)
         if update_distrib:
             filename = self.get_filename(self.mintd_distrib_prefix, self.get_suffix(index))
@@ -113,17 +114,15 @@ def save_flush_np(data, filename):
 
 
 @njit
-def update_mintds(data, mintds):
-    assert data.shape[0] == mintds.shape[0]
+def update_mintds(data, mintds, exclusions):
+    assert data.shape[0] == mintds.shape[0] == exclusions.shape[0]
     for i in range(data.shape[0]):
-        mintd = mintds[i]
-        if mintd > 1:  # this means exclusion in previous rounds
+        if exclusions[i]:
+            data[i] = 2
             continue
-        last_mintd = data[i]
-        if mintd < last_mintd:
+        mintd = mintds[i]
+        if mintd < data[i]:
             data[i] = mintd
-        else:
-            data[i] = last_mintd
     return data
 
 
