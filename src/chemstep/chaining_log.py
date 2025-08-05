@@ -55,6 +55,9 @@ class ChainingLog:
 
     def add_exclusions(self, exclusions, index):
         self._check_index(index)
+        previous_exclusions = self.load_exclusions(index)
+        assert previous_exclusions.shape == exclusions.shape
+        exclusions = np.logical_or(previous_exclusions, exclusions)
         filename = self.get_filename(self.exclusion_prefix, self.get_suffix(index))
         np.save(filename, exclusions)
 
