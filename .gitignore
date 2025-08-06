@@ -1,3 +1,6 @@
 .idea
 dist
 src/chemstep.egg-info
+build/
+docs/_build
+src/chemstep/__pycache__

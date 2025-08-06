@@ -8,7 +8,11 @@ from chemstep.stats import write_stats_df
 import pickle
 from multiprocessing import Pool
 from numba import njit
-from bksltk.fingerprints import get_tc, get_tanimoto_max
+from chemstep.fingerprints import get_tanimoto_max
+import os
+from chemstep.job_array import SlurmJobArray, SGEJobArray
+from chemstep.utils import read_np_data
+from chemstep.id_helper import int64_to_char, char_to_int64
 
 
 def load_from_pickle(fn):
@@ -25,13 +29,13 @@ class CSAlgo:
 
         Attributes:
             fp_lib (FpLibrary): The library of considered molecules (precomputed fingerprints as NumPy arrays)
-            params (CSParams): The parameters for this run of CSC
+            params (CSParams): The parameters for this run of ChemSTEP
             chaining_log (ChainingLog): The object doing the bookkeeping as the rounds progress
     """
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=False, scores_fns=None,
                  ids_fns=None, verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
                  write_complete_info=False, complete_info_dir=None, docking_method="manual",
-                 use_maxdiv=False, smi_id_prefix="ZWIT", smi_id_offset=0, smi_id_nzeros=9, pickle_prefix=None):
+                 smi_id_prefix="CSLB", smi_id_offset=0, pickle_prefix=None, scheduler=None):
         if use_pickle:
             assert pickle_prefix is not None
         self.use_pickle = use_pickle
@@ -59,10 +63,12 @@ class CSAlgo:
         self.df_name = df_name
         self.scores_dir = scores_dir
         self.docking_method = docking_method
-        self.use_maxdiv = use_maxdiv
         self.smi_id_prefix = smi_id_prefix
         self.smi_id_offset = smi_id_offset
-        self.smi_id_nzeros = smi_id_nzeros
+        if scheduler is not None:
+            if scheduler not in ["slurm", "sge"]:
+                raise ValueError("Scheduler must be either 'slurm' or 'sge'")
+        self.scheduler = scheduler
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
             self.chaining_log = ChainingLog(self.fp_lib, output_directory, write_empty_files=False)
@@ -85,21 +91,26 @@ class CSAlgo:
         jobs = []
         for j in range(self.fp_lib.n_files):
             unique_id = "{}_{}".format(round_n, j)
-            job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j)
+            job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
             jobs.append(job)
-        self.run_local(jobs)
+        if self.scheduler == "slurm":
+            self.run_slurm_array(jobs, round_n)
+        elif self.scheduler == "sge":
+            self.run_sge_array(jobs, round_n)
+        else:
+            self.run_local(jobs)
         self.print_verbose("Starting docking for round {}".format(round_n))
-        lib_array_indices, smi_list = self.get_todock_list(round_n)
+        lib_array_indices, smi_list, absolute_ids = self.get_todock_list(round_n)
         self.used_beacons_fps[self.used_beacons_count:self.used_beacons_count+len(beacons)] = beacons
         self.used_beacons_count += len(beacons)
 
         if self.docking_method == "lookup":
             scores_dict = self.lookup_dock(lib_array_indices, smi_list, round_n)
         elif self.docking_method == "manual":
-            self.write_smi_file(smi_list, lib_array_indices, round_n)
+            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
             scores_dict = None
-        else:  # TODO: allow other docking methods
-            raise ValueError("Docking method {} not yet implemented".format(self.docking_method))
+        else:
+            raise ValueError(f"Docking method {self.docking_method} not yet implemented")
 
         if self.write_df:
             write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.score_thresh, self.df_name)
@@ -109,11 +120,15 @@ class CSAlgo:
                 pickle.dump(self, f)
         return scores_dict
 
-    def write_smi_file(self, smi_list, lib_array_indices, round_n):
+    def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
+        abs_out = open(f'{self.complete_info_dir}/absolute_ids_round_{round_n}.txt', 'w')
         with open("{}/smi_round_{}.smi".format(self.complete_info_dir, round_n), 'w') as f:
-            for smi, lib_arr in zip(smi_list, lib_array_indices):
+            for smi, lib_arr, abs_id in zip(smi_list, lib_array_indices, absolute_ids):
                 full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
-                f.write(f'{smi} {self.smi_id_prefix}{full_index+self.smi_id_offset:0{self.smi_id_nzeros}d}\n')
+                char_name = int64_to_char(full_index, prefix=self.smi_id_prefix)
+                f.write(f'{smi} {char_name}\n')
+                abs_out.write(f'{abs_id}\n')
+        abs_out.close()
 
     def linking_loop(self, score_thresh=None):
         if self.params.screen_novelty:
@@ -132,46 +147,83 @@ class CSAlgo:
         p = Pool(self.n_proc)
         p.map(_run_one_job_local, jobs)
 
-    def run_slurm_array(self, jobs):
-        # TODO: implement
-        pass
+    def run_slurm_array(self, jobs, round_n):
+        for j in range(self.fp_lib.n_files):
+            pickle_path = os.path.join(self.chaining_log.jobs_folder, f"{round_n}_{j}.pickle")
+            with open(pickle_path, 'wb') as f:
+                pickle.dump(jobs[j], f)
 
-    def run_sge_array(self, jobs):
-        # TODO: implement
-        pass
+        job_array = SlurmJobArray(
+            round_n=round_n,
+            n_jobs=len(jobs),
+            job_folder=self.chaining_log.jobs_folder,
+            python_exec="python",
+            slurm_options={
+                "account": "rrg-najmanov",
+                "ntasks": "1",
+                "mem": "4GB",
+                "nodes": "1",
+                "cpus-per-task": "1",
+                "time": "12:00:00"
+            }
+        )
+        job_id = job_array.submit()
+        job_array.wait(job_id)
+
+    def run_sge_array(self, jobs, round_n):
+        job_array = SGEJobArray(
+            round_n=round_n,
+            n_jobs=len(jobs),
+            job_folder=self.chaining_log.jobs_folder,
+            python_exec="python",
+            sge_options={
+                "l": "h_rt=12:00:00",
+                "pe": "smp 1",
+                "cwd": None
+            }
+        )
+        job_id = job_array.submit()
+        job_array.wait(job_id)
 
     def get_todock_list(self, round_n):
         mintd_distrib = self.chaining_log.load_global_mintd_distrib()
         if self.write_complete_info:
-            with open("{}/mintd_distrib_{}.df".format(self.complete_info_dir, round_n), 'w') as f:
+            with open(f"{self.complete_info_dir}/mintd_distrib_{round_n}.df", 'w') as f:
                 f.write("mintd count\n")
                 for row in mintd_distrib:
-                    f.write("{} {}\n".format(row[0], row[1]))
+                    f.write(f"{row[0]} {row[1]}\n")
+
         target_n = self.params.n_docked_per_round
-        count = 0
         assert np.sum(mintd_distrib[:, 1]) > target_n
+
+        count = 0
         mintd_thresh = None
         for row in mintd_distrib:
             count += row[1]
-            if count > target_n:
+            if count >= target_n:
                 mintd_thresh = row[0]
                 break
         assert mintd_thresh is not None
-        count = int(round(count))
-        lib_array_indices = np.zeros((count, 2), dtype=np.int64)  # each row: [lib_index, array_index]
-        n_todock = 0
-        smi_list = []
-        for lib_index in range(self.fp_lib.n_files):  # TODO: make parallel ( if necessary)
-            mintds = self.chaining_log.load_mintds(lib_index)
-            exclusions = self.chaining_log.load_exclusions(lib_index)
-            n_todock, indices = _get_todock_libarray_indices(lib_array_indices, mintds, exclusions, mintd_thresh,
-                                                             lib_index, n_todock)
-            smiles = self.fp_lib.load_smiles_indices(lib_index, indices)
-            smi_list += [x for x in smiles]
-            self.chaining_log.add_exclusions(exclusions, lib_index)
-            self.print_verbose("Getting to_dock list, lib_index {}".format(lib_index))
-        lib_array_indices = lib_array_indices[:n_todock]
-        return lib_array_indices, smi_list
+
+        args = [(i, mintd_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
+
+        from multiprocessing import Pool
+        with Pool(self.n_proc) as pool:
+            results = pool.starmap(_process_single_lib_chunked, args)
+
+        all_lib_array_indices = []
+        all_smiles = []
+        all_absolute_ids = []
+
+        for lib_array_inds, smiles, abs_ids in results:
+            all_lib_array_indices.append(lib_array_inds)
+            all_smiles.extend(smiles)
+            all_absolute_ids.append(abs_ids)
+
+        lib_array_indices = np.concatenate(all_lib_array_indices, axis=0)
+        absolute_ids = np.concatenate(all_absolute_ids, axis=0)
+
+        return lib_array_indices, all_smiles, absolute_ids
 
     def lookup_dock(self, lib_array_indices, smi_list, round_n):
         self.print_verbose("About to start 'docking'")
@@ -247,10 +299,7 @@ class CSAlgo:
         raise ValueError("screen_novelty() not yet implemented")
 
     def apply_beacons_diversity(self):
-        if self.use_maxdiv:
-            return self.apply_beacons_diversity_maxdiv()
-        else:
-            return self.apply_beacons_diversity_distthresh()
+        return self.apply_beacons_diversity_maxdiv()
 
     def load_all_fps_unused_beacons(self):
         # fingerprints for all unused beacons
@@ -272,7 +321,6 @@ class CSAlgo:
         return all_fps
 
     def apply_beacons_diversity_maxdiv(self):
-        # TODO: test this
         all_fps = self.load_all_fps_unused_beacons()
         if self.used_beacons_count > 0:
             distance_vector = 1 - get_tanimoto_max(self.used_beacons_fps[:self.used_beacons_count], all_fps)
@@ -288,39 +336,53 @@ class CSAlgo:
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
         return all_fps[selected == 1]
 
-    def apply_beacons_diversity_distthresh(self, use_previous_beacons=True):
-        dist_thresh = self.params.diversity_dist_thresh
-
-        all_fps = self.load_all_fps_unused_beacons()
-
-        if dist_thresh == 0:
-            return all_fps
-        else:
-            kept_fps = np.zeros((len(all_fps), self.fp_lib.fp_length_bytes), dtype=np.uint8)
-            count = 1
-            kept_fps[0] = all_fps[0]
-            kept_beacons = [self.unused_beacons[0]]
-            for i in range(1, len(all_fps)):
-                curr_fp = all_fps[i]
-                mindist = 2
-                for j in range(count):
-                    dist = 1 - get_tc(curr_fp, kept_fps[j])
-                    if dist < mindist:
-                        mindist = dist
-                for j in range(self.used_beacons_count):
-                    dist = 1 - get_tc(curr_fp, self.used_beacons_fps[j])
-                    if dist < mindist:
-                        mindist = dist
-                if mindist >= dist_thresh:
-                    kept_fps[count] = curr_fp
-                    kept_beacons.append(self.unused_beacons[i])
-                    count += 1
-            self.unused_beacons = kept_beacons  # TODO: this seems wrong? Mostly using maxdiv for now so doesn't matter
-            return kept_fps
+    def all_jobs_completed(self, round_n):
+        for j in range(self.fp_lib.n_files):
+            pickle_path = os.path.join(self.chaining_log.jobs_folder, f"{round_n}_{j}.pickle")
+            if not os.path.exists(pickle_path):
+                return False
+            with open(pickle_path, 'rb') as f:
+                job = pickle.load(f)
+            if not getattr(job, 'completed', False):
+                return False
+        return True
 
 
 def _run_one_job_local(job):
     job.run_local()
+
+
+def _process_single_lib_chunked(lib_index, mintd_thresh, fp_lib, chaining_log, chunk_size=100_000):
+    mintd_path = chaining_log.get_filename(chaining_log.mintd_prefix, chaining_log.get_suffix(lib_index))
+    excl_path = chaining_log.get_filename(chaining_log.exclusion_prefix, chaining_log.get_suffix(lib_index))
+    ids_path = fp_lib.id_files[lib_index]
+
+    n_mols = read_np_data(mintd_path).shape[0]
+    mintds = np.memmap(mintd_path, dtype=np.float32, mode='r', shape=(n_mols,))
+    ids = np.memmap(ids_path, dtype=np.int64, mode='r', shape=(n_mols,))
+    exclusions = np.memmap(excl_path, dtype=np.uint8, mode='r+', shape=(n_mols,))
+
+    lib_array_indices = []
+    selected_indices = []
+    absolute_ids = []
+
+    for start in range(0, n_mols, chunk_size):
+        end = min(start + chunk_size, n_mols)
+        chunk_mintds = mintds[start:end]
+        chunk_excls = exclusions[start:end]
+
+        for i, (mintd, excl) in enumerate(zip(chunk_mintds, chunk_excls)):
+            if not excl and mintd <= mintd_thresh:
+                abs_index = start + i
+                lib_array_indices.append((lib_index, abs_index))
+                selected_indices.append(abs_index)
+                absolute_ids.append(ids[abs_index])
+                exclusions[abs_index] = 1  # set exclusion flag immediately
+
+    exclusions.flush()  # commit new exclusions to disk
+
+    smi_list = fp_lib.load_smiles_indices(lib_index, selected_indices)
+    return np.array(lib_array_indices, dtype=np.int64), smi_list, np.array(absolute_ids, dtype=np.int64)
 
 
 @njit
