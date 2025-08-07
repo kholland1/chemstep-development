@@ -52,7 +52,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “Manual” Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “manual” mode</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul>
@@ -86,11 +86,11 @@
              
   <section id="quickstart">
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading"></a></h1>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">chemstep.fp_library</span> <span class="kn">import</span> <span class="n">FpLibrary</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">chemstep.fp_library</span> <span class="kn">import</span> <span class="n">load_library_from_pickle</span>
 <span class="kn">from</span> <span class="nn">chemstep.algo</span>      <span class="kn">import</span> <span class="n">CSAlgo</span>
 
 <span class="c1"># 1)  Load the pre-computed fingerprint library (.pickle)</span>
-<span class="n">lib</span> <span class="o">=</span> <span class="n">FpLibrary</span><span class="o">.</span><span class="n">load_library_from_pickle</span><span class="p">(</span><span class="s1">&#39;zinc.fp_lib.pickle&#39;</span><span class="p">)</span>
+<span class="n">lib</span> <span class="o">=</span> <span class="n">load_library_from_pickle</span><span class="p">(</span><span class="s1">&#39;zinc.fp_lib.pickle&#39;</span><span class="p">)</span>
 
 <span class="c1"># 2)  Parse parameters from a YAML/TXT file</span>
 <span class="n">algo</span> <span class="o">=</span> <span class="n">CSAlgo</span><span class="p">(</span><span class="n">lib</span><span class="p">,</span> <span class="s1">&#39;params.txt&#39;</span><span class="p">,</span> <span class="n">output_directory</span><span class="o">=</span><span class="s1">&#39;run1&#39;</span><span class="p">,</span>

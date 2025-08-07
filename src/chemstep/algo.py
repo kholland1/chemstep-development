@@ -155,7 +155,7 @@ class CSAlgo:
                 abs_out.write(f'{abs_id}\n')
         abs_out.close()
 
-    def linking_loop(self, score_thresh=None):
+    def seed(self, score_thresh=None):
         seed_indices = np.load(self.params.seed_indices_file)
         seed_scores = np.load(self.params.seed_scores_file)
         if score_thresh is None:
@@ -168,8 +168,10 @@ class CSAlgo:
                                f"(pProp of {self.params.hit_pprop})")
             self.score_thresh = score_thresh
             self.print_verbose(f"Overrode score threshold to {self.score_thresh:.2f}")
-        new_indices = seed_indices
-        new_scores = seed_scores
+        return seed_indices, seed_scores
+
+    def linking_loop(self, score_thresh=None):
+        new_indices, new_scores = self.seed(score_thresh=score_thresh)
         for i in range(1, self.params.max_n_rounds+1):
             new_indices, new_scores = self.run_one_round(i, new_indices, new_scores)
 

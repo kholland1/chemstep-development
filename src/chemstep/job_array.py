@@ -133,38 +133,53 @@ class SGEJobArray(JobArray):
         return job_id
 
     def wait(self, job_id, poll_interval=30, timeout=36000):
-        """Block until every task in the SGE array has finished."""
+        """
+        Block until every task in the SGE array has completed.
+
+        Strategy
+        --------
+        1. Poll qstat -u $USER          → job still queued / running?
+        2. When it disappears, poll qacct -j JOBID -t
+           • Records exist → finished  (check failed/exit_status)
+           • Records absent → accounting lag; keep waiting
+        """
         print(f"[INFO] Waiting for SGE job array {job_id} to complete...")
-        start = time.time()
+        t0 = time.time()
 
         while True:
-            # show queued (qw) + running (r/R/t) jobs for this user
+            # 1) still in the queue?
             qstat = subprocess.run(
                 ["qstat", "-u", os.getenv("USER")],
                 capture_output=True, text=True
             )
-
-            active = any(
+            in_qstat = any(
                 line.split()[0].startswith(job_id)
                 for line in qstat.stdout.strip().splitlines()
             )
 
-            if active:
-                # still in queue → keep waiting
+            if in_qstat:
+                # queued (qw) or running (r/R/t)
                 pass
             else:
-                # array vanished from qstat: look for it in accounting
+                # 2) check accounting; -t lists every task record
                 acc = subprocess.run(
-                    ["qacct", "-j", job_id],
+                    ["qacct", "-j", job_id, "-t"],
                     capture_output=True, text=True
                 )
-                if acc.returncode == 0 and "exit_status" in acc.stdout:
-                    print(f"[INFO] SGE job array {job_id} completed.")
-                    return              # success
-                else:
-                    print("[INFO] Job not yet in accounting; scheduler still assigning IDs…")
 
-            if time.time() - start > timeout:
+                if acc.returncode == 0 and acc.stdout.strip():
+                    # finished – look for failed tasks
+                    if "failed" in acc.stdout.lower():
+                        raise RuntimeError(
+                            f"Some tasks in array {job_id} reported failure:\n{acc.stdout}"
+                        )
+                    print(f"[INFO] SGE job array {job_id} completed.")
+                    return
+
+                # else: not in accounting yet (scheduler lag)
+                print("[INFO] Array no longer in qstat; waiting for accounting update…")
+
+            if time.time() - t0 > timeout:
                 raise TimeoutError(
                     f"SGE job array {job_id} did not complete within {timeout} s."
                 )

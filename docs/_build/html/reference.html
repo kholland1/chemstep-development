@@ -21,7 +21,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Running ChemSTEP in “Manual” Mode" href="manual_docking.html" />
+    <link rel="next" title="Running ChemSTEP in “manual” mode" href="manual_docking.html" />
     <link rel="prev" title="Quickstart" href="quickstart.html" /> 
 </head>
 
@@ -68,6 +68,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.run_sge_array"><code class="docutils literal notranslate"><span class="pre">CSAlgo.run_sge_array()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.run_slurm_array"><code class="docutils literal notranslate"><span class="pre">CSAlgo.run_slurm_array()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.screen_novelty"><code class="docutils literal notranslate"><span class="pre">CSAlgo.screen_novelty()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.seed"><code class="docutils literal notranslate"><span class="pre">CSAlgo.seed()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.set_score_thresh"><code class="docutils literal notranslate"><span class="pre">CSAlgo.set_score_thresh()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.write_smi_file"><code class="docutils literal notranslate"><span class="pre">CSAlgo.write_smi_file()</span></code></a></li>
 </ul>
@@ -86,7 +87,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “Manual” Mode</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “manual” mode</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul>
@@ -256,6 +257,11 @@ in the next search round.</p>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.seed">
+<span class="sig-name descname"><span class="pre">seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">score_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.algo.CSAlgo.seed" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.set_score_thresh">
 <span class="sig-name descname"><span class="pre">set_score_thresh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed_scores</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.algo.CSAlgo.set_score_thresh" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -349,7 +355,7 @@ seed_indices_file, as a float32 array in .npy format</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="manual_docking.html" class="btn btn-neutral float-right" title="Running ChemSTEP in “Manual” Mode" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="manual_docking.html" class="btn btn-neutral float-right" title="Running ChemSTEP in “manual” mode" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

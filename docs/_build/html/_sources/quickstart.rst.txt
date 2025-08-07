@@ -4,11 +4,11 @@ Quickstart
 
 .. code-block:: python
 
-   from chemstep.fp_library import FpLibrary
+   from chemstep.fp_library import load_library_from_pickle
    from chemstep.algo      import CSAlgo
 
    # 1)  Load the pre-computed fingerprint library (.pickle)
-   lib = FpLibrary.load_library_from_pickle('zinc.fp_lib.pickle')
+   lib = load_library_from_pickle('zinc.fp_lib.pickle')
 
    # 2)  Parse parameters from a YAML/TXT file
    algo = CSAlgo(lib, 'params.txt', output_directory='run1',
