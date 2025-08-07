@@ -1,10 +1,6 @@
 from numba import njit
 import numpy as np
-from itertools import repeat
-from rdkit import Chem
-from rdkit.Chem import AllChem
-import time
-from multiprocessing import Pool
+import sys
 
 
 bitsum_lookup = np.zeros(256, dtype=np.float32)
@@ -56,3 +52,37 @@ def bitsum(a):
     for elem in a:
         s += bitsum_lookup[elem]
     return s
+
+
+def get_fp_from_smiles(smiles, n_bits=1024, packbits=True):
+    if "Chem" not in sys.modules:
+        from rdkit import Chem
+    if "AllChem" not in sys.modules:
+        from rdkit.Chem import AllChem
+    info = {}
+    mol = Chem.MolFromSmiles(smiles)
+    fp = AllChem.GetMorganFingerprintAsBitVect(mol, useChirality=False, radius=2, nBits=n_bits, bitInfo=info)
+    fp = np.array(fp)
+    if packbits:
+        fp = np.packbits(fp)
+    return fp
+
+
+def compute_morgan_fps(smi_fn, n_bits=1024, ignore_exceptions=False):
+    assert n_bits % 8 == 0
+    with open(smi_fn) as f:
+        lines = f.readlines()
+    all_fps = np.zeros((len(lines), int(n_bits/8)), dtype=np.uint8)
+    for i, line in enumerate(lines):
+        smiles = line.split()[0]
+        try:
+            fp = get_fp_from_smiles(smiles, n_bits=n_bits, packbits=True)
+            all_fps[i] = fp
+        except Exception as e:
+            if ignore_exceptions:
+                print(f"Ignoring exception for line {i} of file {smi_fn} ( SMILES: {smiles} )")
+                continue
+            else:
+                raise e
+    return all_fps
+

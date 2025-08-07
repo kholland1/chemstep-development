@@ -4,7 +4,6 @@ from chemstep.parameters import CSParams, read_param_file
 from chemstep.chaining_log import ChainingLog
 from chemstep.search_job import SearchJob
 from chemstep.lookup_docking import LookupDocking
-from chemstep.stats import write_stats_df
 import pickle
 from multiprocessing import Pool
 from numba import njit
@@ -35,8 +34,8 @@ class CSAlgo:
             chaining_log (ChainingLog): The object doing the bookkeeping as the rounds progress
     """
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
-                 pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, write_complete_info=True,
-                 complete_info_dir=None, docking_method="manual", smi_id_prefix="CSLB", scheduler=None,
+                 pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
+                 smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
                  scores_fns=None):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
@@ -55,19 +54,39 @@ class CSAlgo:
         self.scores_fns = scores_fns
         self.n_proc = n_proc
         self.verbose = verbose
-        self.write_complete_info = write_complete_info
-        if self.write_complete_info:
-            if complete_info_dir is None:
-                complete_info_dir = os.path.join(output_directory, "complete_info")
-            os.makedirs(complete_info_dir, exist_ok=True)
-        self.complete_info_dir = complete_info_dir
+        if info_dir is None:
+            info_dir = os.path.join(output_directory, "complete_info")
+        os.makedirs(info_dir, exist_ok=True)
+        self.info_dir = info_dir
         self.docking_method = docking_method
         self.smi_id_prefix = smi_id_prefix
-        self.book = Bookkeeper(self.complete_info_dir, self.smi_id_prefix)
+        self.book = Bookkeeper(self.info_dir, self.smi_id_prefix)
         if scheduler is not None:
             if scheduler not in ["slurm", "sge"]:
                 raise ValueError("Scheduler must be either 'slurm' or 'sge'")
+            if python_exec is None:
+                python_exec = "python"
+                print("WARNING: no python_exec specified, using 'python' by default. (on some schedulers this will" +
+                      "lead to using the system Python, which may not have all dependencies installed)")
+        self.python_exec = python_exec
         self.scheduler = scheduler
+        if slurm_options is None:
+            slurm_options = {
+                "account": "rrg-mailhoto",
+                "ntasks": "1",
+                "mem": "4GB",
+                "nodes": "1",
+                "cpus-per-task": "1",
+                "time": "1:00:00"
+            }
+        self.slurm_options = slurm_options
+        if sge_options is None:
+            sge_options = {
+                "l": "h_rt=12:00:00",
+                "pe": "smp 1",
+                "cwd": None
+            }
+        self.sge_options = sge_options
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
             self.chaining_log = ChainingLog(self.fp_lib, output_directory, write_empty_files=False)
@@ -113,6 +132,7 @@ class CSAlgo:
         self.used_beacons_count += len(beacons)
 
         if self.docking_method == "lookup":
+            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
             new_indices, new_scores = self.lookup_dock(lib_array_indices, smi_list, round_n)
         elif self.docking_method == "manual":
             self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
@@ -126,8 +146,8 @@ class CSAlgo:
         return new_indices, new_scores
 
     def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
-        abs_out = open(f'{self.complete_info_dir}/absolute_ids_round_{round_n}.txt', 'w')
-        with open("{}/smi_round_{}.smi".format(self.complete_info_dir, round_n), 'w') as f:
+        abs_out = open(f'{self.info_dir}/absolute_ids_round_{round_n}.txt', 'w')
+        with open("{}/smi_round_{}.smi".format(self.info_dir, round_n), 'w') as f:
             for smi, lib_arr, abs_id in zip(smi_list, lib_array_indices, absolute_ids):
                 full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
                 char_name = int64_to_char(full_index, prefix=self.smi_id_prefix)
@@ -143,7 +163,7 @@ class CSAlgo:
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
         else:
-            self.set_score_thresh(seed_indices, seed_scores)  # important to remove already docked compounds
+            self.set_score_thresh(seed_indices, seed_scores)  # still important, to remove already docked compounds
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
             self.score_thresh = score_thresh
@@ -167,15 +187,8 @@ class CSAlgo:
             round_n=round_n,
             n_jobs=len(jobs),
             job_folder=self.chaining_log.jobs_folder,
-            python_exec="python",
-            slurm_options={
-                "account": "rrg-mailhoto",
-                "ntasks": "1",
-                "mem": "4GB",
-                "nodes": "1",
-                "cpus-per-task": "1",
-                "time": "1:00:00"
-            }
+            python_exec=self.python_exec,
+            slurm_options=self.slurm_options
         )
         job_id = job_array.submit()
         job_array.wait(job_id)
@@ -185,23 +198,18 @@ class CSAlgo:
             round_n=round_n,
             n_jobs=len(jobs),
             job_folder=self.chaining_log.jobs_folder,
-            python_exec="python",
-            sge_options={
-                "l": "h_rt=12:00:00",
-                "pe": "smp 1",
-                "cwd": None
-            }
+            python_exec=self.python_exec,
+            sge_options=self.sge_options
         )
         job_id = job_array.submit()
         job_array.wait(job_id)
 
     def get_todock_list(self, round_n):
         mintd_distrib = self.chaining_log.load_global_mintd_distrib()
-        if self.write_complete_info:
-            with open(f"{self.complete_info_dir}/mintd_distrib_{round_n}.df", 'w') as f:
-                f.write("mintd count\n")
-                for mintd_bin, n in enumerate(mintd_distrib):
-                    f.write(f"{(mintd_bin + 0.5) / 1000} {n}\n")
+        with open(f"{self.info_dir}/mintd_distrib_{round_n}.df", 'w') as f:
+            f.write("mintd count\n")
+            for mintd_bin, n in enumerate(mintd_distrib):
+                f.write(f"{(mintd_bin + 1) / 1000} {n}\n")
 
         target_n = self.params.n_docked_per_round
         assert np.sum(mintd_distrib) > target_n
@@ -243,17 +251,14 @@ class CSAlgo:
         self.print_verbose("'Docking' done")
         new_scores = docker.get_scores_list()
         new_indices = np.zeros(len(new_scores), dtype=np.int64)
-        self.print_verbose("SCORES_ROUND_{}: {}".format(round_n, new_scores))
-        self.print_verbose("SMILES_ROUND_{}: {}".format(round_n, smi_list))
 
         for i, ((lib_index, arr_index), score) in enumerate(zip(lib_array_indices, new_scores)):
             full_id = self.fp_lib.get_full_index(lib_index, arr_index)
             new_indices[i] = full_id
-        if self.write_complete_info:
-            with open(f"{self.complete_info_dir}/hits_round_{round_n}.df", 'w') as f:
-                f.write("full_id score\n")
-                for full_id, score in zip(new_indices, new_scores):
-                    f.write(f"{full_id} {score}\n")
+        with open(f"{self.info_dir}/docked_round_{round_n}.df", 'w') as f:
+            f.write("full_id score\n")
+            for full_id, score in zip(new_indices, new_scores):
+                f.write(f"{full_id} {score}\n")
         return new_indices, new_scores
 
     def set_score_thresh(self, seed_indices, seed_scores):
@@ -305,38 +310,7 @@ class CSAlgo:
 
         selected_fps = self.apply_beacons_diversity()
 
-        if self.write_complete_info:
-            outfile = f"{self.complete_info_dir}/beacons_round_{round_n}.df"
-            with open(outfile, "w") as f:
-                f.write("index score\n")
-                for score, full_id in self.current_beacons:  # len(kept_pairs) == len(selected_fps)
-                    f.write(f"{full_id} {score}\n")
-
         return selected_fps
-
-    def bak_get_beacons(self, new_indices, new_scores, round_n):
-        beacons_indices = []
-        beacons_scores = []
-        for index, score in zip(new_indices, new_scores):
-            if score <= self.score_thresh:
-                beacons_indices.append(index)
-                beacons_scores.append(score)
-        self.unused_beacons += [x for x in zip(beacons_scores, beacons_indices)]
-        self.unused_beacons = sorted(self.unused_beacons)
-        filtered_fps = self.apply_beacons_diversity()
-        if len(self.unused_beacons) >= self.params.max_beacons:
-            n_beacons = self.params.max_beacons
-        else:
-            n_beacons = len(self.unused_beacons)
-
-        beacons = filtered_fps[:n_beacons]
-        if self.write_complete_info:
-            with open(f"{self.complete_info_dir}/beacons_round_{round_n}.df", 'w') as f:
-                f.write("index score\n")
-                for score, index in self.unused_beacons[:n_beacons]:
-                    f.write(f"{index} {score}\n")
-        self.unused_beacons = self.unused_beacons[n_beacons:]
-        return beacons
 
     def screen_novelty(self):
         raise ValueError("screen_novelty() not yet implemented")

@@ -4,9 +4,10 @@
 ChemSTEP Documentation
 ===========================
 
-High-throughput **Structure-Trajectory-Exploration** (*ChemSTEP*) combines
-near-native docking with rational AI for library chaining.  This site
-provides step-by-step tutorials and a full API reference.
+ChemSTEP (Chemical Space Traversal and Exploration Procedure) is an open-source, transparent acceleration algorithm for
+molecular docking capable of dealing with virtual libraries of several trillion compounds.
+
+If you use ChemSTEP, please cite: PLACEHOLDER
 
 .. toctree::
    :maxdepth: 2
@@ -14,16 +15,17 @@ provides step-by-step tutorials and a full API reference.
 
    installation
    quickstart
+   reference
 
 .. toctree::
    :maxdepth: 2
    :caption: Tutorials
 
-   fingerprint_library
    manual_docking
 
 .. toctree::
-   :maxdepth: 1
-   :caption: API
+   :maxdepth: 2
+   :caption: Advanced uses
 
-   api/modules
+   fingerprint_library
+   configuration

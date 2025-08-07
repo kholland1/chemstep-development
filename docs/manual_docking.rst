@@ -47,8 +47,6 @@ ChemSTEP provides two convenience wrappers for launching array jobs:
 * :py:class:`chemstep.job_array.SlurmJobArray` – builds a SLURM batch script, submits it, and polls for completion.
 * :py:class:`chemstep.job_array.SGEJobArray` – equivalent helper for Sun Grid Engine / UGE clusters.
 
-The complete list of attributes and methods for each class is in the
-:doc:`API reference <api/modules>`.
 
 These autogenerate array scripts (`run_array_round_N.sh`) with sensible
 defaults that you can override via ``slurm_options``/``sge_options``.
