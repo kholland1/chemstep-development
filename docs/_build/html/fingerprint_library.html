@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creating a Fingerprint Mesh &mdash; ChemSTEP  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="ChemSTEP parameters/configuration" href="configuration.html" />
+    <link rel="prev" title="Running ChemSTEP in “Manual” Mode" href="manual_docking.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ChemSTEP
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “Manual” Mode</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Creating a Fingerprint Mesh</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow-overview">Workflow overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-checks-performed">Key checks performed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-data-on-demand">Loading data on demand</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ChemSTEP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Creating a Fingerprint Mesh</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/fingerprint_library.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="creating-a-fingerprint-mesh">
+<h1>Creating a Fingerprint Mesh<a class="headerlink" href="#creating-a-fingerprint-mesh" title="Link to this heading"></a></h1>
+<p>This tutorial shows how to build a <strong>FpLibrary</strong> object from raw
+SMILES files and pre-computed Morgan fingerprints.</p>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>SMILES list split into chunks (one per future array job)</p></li>
+<li><p>Corresponding ZINC (or other) integer IDs</p></li>
+<li><p>Binary fingerprints stored as contiguous <strong>uint8</strong> NumPy arrays
+(shape: <em>n_molecules × fp_len_bytes</em>)</p></li>
+</ul>
+</section>
+<section id="workflow-overview">
+<h2>Workflow overview<a class="headerlink" href="#workflow-overview" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Generate fingerprints</strong> (RDKit)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">rdkit</span> <span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span> <span class="nn">rdkit.Chem</span> <span class="kn">import</span> <span class="n">AllChem</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="k">def</span> <span class="nf">morgan_fp</span><span class="p">(</span><span class="n">smiles</span><span class="p">,</span> <span class="n">nbits</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smiles</span><span class="p">)</span>
+    <span class="n">fp</span>  <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">GetMorganFingerprintAsBitVect</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">nBits</span><span class="o">=</span><span class="n">nbits</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Save data</strong>
+Save <em>fpsXXXX.npy</em>, <em>zidsXXXX.npy</em>, and <em>smiXXXX.smi</em> where
+<strong>XXXX</strong> is a numeric/alpha suffix shared by the trio.</p></li>
+<li><p><strong>Instantiate</strong> <code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">lib</span> <span class="o">=</span> <span class="n">FpLibrary</span><span class="p">(</span>
+    <span class="n">fingerprint_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;fps*.npy&#39;</span><span class="p">)),</span>
+    <span class="n">id_files</span>          <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;zids*.npy&#39;</span><span class="p">)),</span>
+    <span class="n">smi_files</span>         <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;smi*.smi&#39;</span><span class="p">)),</span>
+    <span class="n">outname</span>           <span class="o">=</span> <span class="s1">&#39;zinc.fp_lib.pickle&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="key-checks-performed">
+<h2>Key checks performed<a class="headerlink" href="#key-checks-performed" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>All three filename prefixes match <strong>exactly</strong>.</p></li>
+<li><p>Each trio has identical length; <em>fp_len_bytes</em> is constant.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dtype</span></code> validation (<code class="docutils literal notranslate"><span class="pre">np.uint8</span></code> for fps, <code class="docutils literal notranslate"><span class="pre">np.int64</span></code> for IDs).</p></li>
+</ul>
+</section>
+<section id="loading-data-on-demand">
+<h2>Loading data on demand<a class="headerlink" href="#loading-data-on-demand" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code> keeps only filenames in memory.  Fingerprints/IDs are
+memory-mapped when needed, enabling petabyte-scale libraries.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">FpLibrary.</span></span><span class="sig-name descname"><span class="pre">load_fps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">FpLibrary.</span></span><span class="sig-name descname"><span class="pre">get_full_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">array_index</span></span></em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="manual_docking.html" class="btn btn-neutral float-left" title="Running ChemSTEP in “Manual” Mode" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="configuration.html" class="btn btn-neutral float-right" title="ChemSTEP parameters/configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Olivier Mailhot.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
