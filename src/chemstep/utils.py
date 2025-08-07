@@ -24,7 +24,7 @@ def mintd_histogram_stream(mintds, exclusions, chunk_size=1_000_000):
     Return the 1001-bin histogram used by ChemSTEP, **excluding** molecules
     whose exclusion flag is already >0.
     """
-    distrib = np.zeros(1001, dtype=np.int32)
+    distrib = np.zeros(1001, dtype=np.int64)
     n = mintds.shape[0]
 
     for start in range(0, n, chunk_size):
@@ -37,7 +37,7 @@ def mintd_histogram_stream(mintds, exclusions, chunk_size=1_000_000):
         if not mask.any():
             continue
 
-        bins = np.round(md[mask] * 1000).astype(np.int64)
+        bins = np.floor(md[mask] * 1000).astype(np.int64)
         np.add.at(distrib, bins, 1)
 
     return distrib

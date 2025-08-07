@@ -34,7 +34,7 @@ class ChainingLog:
             os.mkdir(self.jobs_folder)
         prefixes = [self.exclusion_prefix, self.mintd_prefix, self.mintd_distrib_prefix]
         shapes = [None, None, 1001]
-        data_types = [np.uint8, np.float32, np.int32]
+        data_types = [np.uint8, np.float32, np.int64]
         init_vals = [0, 2, 0]
         for i, suffix in enumerate(self.fp_library.suffixes):
             length = self.fp_library.lengths[i]
@@ -64,18 +64,13 @@ class ChainingLog:
     def load_mintd_distrib(self, index):
         self._check_index(index)
         filename = self.get_filename(self.mintd_distrib_prefix, self.get_suffix(index))
-        data = np.load(filename)
-        td_values = np.arange(0, stop=1.001, step=0.001)
-        distrib = np.zeros((1001, 2))
-        distrib[:, 0] = td_values
-        distrib[:, 1] = data
-        return distrib
+        return np.load(filename)
 
     def load_global_mintd_distrib(self):
         global_distrib = self.load_mintd_distrib(0)
         for index in range(1, self.fp_library.n_files):
             mintd_distrib = self.load_mintd_distrib(index)
-            global_distrib[:, 1] += mintd_distrib[:, 1]
+            global_distrib += mintd_distrib
         return global_distrib
 
     def load_mintds(self, index):
@@ -131,11 +126,11 @@ def update_mintds(data, mintds, exclusions):
 
 @njit
 def get_mintd_distrib(mintds):
-    distrib = np.zeros(1001, dtype=np.int32)
+    distrib = np.zeros(1001, dtype=np.int64)
     for mintd in mintds:
         if mintd > 1:
             continue
-        index = int(np.round(mintd*1000))
+        index = int(np.floor(mintd*1000))
         distrib[index] += 1
     return distrib
 

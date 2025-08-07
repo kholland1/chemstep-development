@@ -14,6 +14,7 @@ from chemstep.job_array import SlurmJobArray, SGEJobArray
 from chemstep.utils import read_np_data
 from chemstep.id_helper import int64_to_char, char_to_int64
 from numpy.lib.format import open_memmap
+from chemstep.bookkeeper import Bookkeeper
 
 
 def load_from_pickle(fn):
@@ -33,10 +34,12 @@ class CSAlgo:
             params (CSParams): The parameters for this run of ChemSTEP
             chaining_log (ChainingLog): The object doing the bookkeeping as the rounds progress
     """
-    def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=False, scores_fns=None,
-                 ids_fns=None, verbose=False, skip_setup=False, write_df=False, df_name=None, scores_dir=None,
-                 write_complete_info=False, complete_info_dir=None, docking_method="manual",
-                 smi_id_prefix="CSLB", smi_id_offset=0, pickle_prefix=None, scheduler=None):
+    def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
+                 pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, write_complete_info=True,
+                 complete_info_dir=None, docking_method="manual", smi_id_prefix="CSLB", scheduler=None,
+                 scores_fns=None):
+        os.makedirs(output_directory, exist_ok=True)
+        self.output_directory = output_directory
         if use_pickle:
             assert pickle_prefix is not None
         self.use_pickle = use_pickle
@@ -50,22 +53,17 @@ class CSAlgo:
         else:
             raise ValueError("chemstep_params has to be a string path to a parameter file or an instance of CSParams")
         self.scores_fns = scores_fns
-        self.ids_fns = ids_fns
         self.n_proc = n_proc
         self.verbose = verbose
-        self.write_df = write_df
         self.write_complete_info = write_complete_info
         if self.write_complete_info:
-            assert complete_info_dir is not None
+            if complete_info_dir is None:
+                complete_info_dir = os.path.join(output_directory, "complete_info")
+            os.makedirs(complete_info_dir, exist_ok=True)
         self.complete_info_dir = complete_info_dir
-        if write_df:
-            assert df_name is not None
-            assert scores_dir is not None
-        self.df_name = df_name
-        self.scores_dir = scores_dir
         self.docking_method = docking_method
         self.smi_id_prefix = smi_id_prefix
-        self.smi_id_offset = smi_id_offset
+        self.book = Bookkeeper(self.complete_info_dir, self.smi_id_prefix)
         if scheduler is not None:
             if scheduler not in ["slurm", "sge"]:
                 raise ValueError("Scheduler must be either 'slurm' or 'sge'")
@@ -78,6 +76,9 @@ class CSAlgo:
         self.print_verbose("ChainingLog set")
         self.score_thresh = None
         self.unused_beacons = []
+        self.current_beacons = []
+        self.current_beacons_dists = []
+        self.current_mintd_thresh = None
         self.used_beacons_fps = np.zeros((self.params.max_n_rounds * self.params.max_beacons,
                                           self.fp_lib.fp_length_bytes), dtype=np.uint8)
         self.used_beacons_count = 0
@@ -87,6 +88,12 @@ class CSAlgo:
             print(s)
 
     def run_one_round(self, round_n, new_indices, new_scores):
+        if round_n > 1:
+            n_hits = int(np.sum(new_scores <= self.score_thresh))
+            beacon_ids = [b[1] for b in self.current_beacons]
+            beacon_scores = [b[0] for b in self.current_beacons]
+            self.book.log_round(round_n-1, len(new_indices), n_hits, self.current_mintd_thresh,
+                                beacon_ids, beacon_scores, self.current_beacons_dists)
         beacons = self.get_beacons(new_indices, new_scores, round_n)
         self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
         jobs = []
@@ -112,10 +119,6 @@ class CSAlgo:
             new_indices, new_scores = None, None
         else:
             raise ValueError(f"Docking method {self.docking_method} not yet implemented")
-
-        if self.write_df:
-            print("WARNING: writing stats dataframe still not reimplemented")
-            # write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.score_thresh, self.df_name)
 
         if self.use_pickle:
             with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
@@ -197,22 +200,23 @@ class CSAlgo:
         if self.write_complete_info:
             with open(f"{self.complete_info_dir}/mintd_distrib_{round_n}.df", 'w') as f:
                 f.write("mintd count\n")
-                for row in mintd_distrib:
-                    f.write(f"{row[0]} {row[1]}\n")
+                for mintd_bin, n in enumerate(mintd_distrib):
+                    f.write(f"{(mintd_bin + 0.5) / 1000} {n}\n")
 
         target_n = self.params.n_docked_per_round
-        assert np.sum(mintd_distrib[:, 1]) > target_n
+        assert np.sum(mintd_distrib) > target_n
 
+        mintd_bin_thresh = None
         count = 0
-        mintd_thresh = None
-        for row in mintd_distrib:
-            count += row[1]
+        for b in range(1001):
+            count += mintd_distrib[b]
             if count >= target_n:
-                mintd_thresh = row[0] + 0.0005
+                mintd_bin_thresh = b
                 break
-        assert mintd_thresh is not None
+        assert mintd_bin_thresh is not None
+        self.current_mintd_thresh = (mintd_bin_thresh + 0.5) / 1000
 
-        args = [(i, mintd_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
+        args = [(i, mintd_bin_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
 
         from multiprocessing import Pool
         with Pool(self.n_proc) as pool:
@@ -299,20 +303,13 @@ class CSAlgo:
         self.unused_beacons.extend(beacons_candidates)
         self.unused_beacons.sort()  # ascending score
 
-        # 2. Diversity pruning – this mutates self.unused_beacons by
-        #    popping out the selected items and returns their fingerprints
-        previous_pool = self.unused_beacons.copy()  # snapshot BEFORE pruning
-        selected_fps = self.apply_beacons_diversity()  # returns ≤ max_beacons rows
+        selected_fps = self.apply_beacons_diversity()
 
-        # 3. Identify which (score, index) tuples were actually kept
-        kept_pairs = [pair for pair in previous_pool if pair not in self.unused_beacons]
-
-        # 4. Optional: write full beacon info for this round
         if self.write_complete_info:
             outfile = f"{self.complete_info_dir}/beacons_round_{round_n}.df"
             with open(outfile, "w") as f:
                 f.write("index score\n")
-                for score, full_id in kept_pairs:  # len(kept_pairs) == len(selected_fps)
+                for score, full_id in self.current_beacons:  # len(kept_pairs) == len(selected_fps)
                     f.write(f"{full_id} {score}\n")
 
         return selected_fps
@@ -382,7 +379,8 @@ class CSAlgo:
             kept_beacons.append(self.unused_beacons[max_index])
             distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
-        self.print_verbose(f"Distances for current beacon selection: {distances}")
+        self.current_beacons = kept_beacons
+        self.current_beacons_dists = distances
         return all_fps[selected == 1]
 
     def all_jobs_completed(self, round_n):
@@ -401,7 +399,7 @@ def _run_one_job_local(job):
     job.run_local()
 
 
-def _process_single_lib_chunked(lib_index, mintd_thresh, fp_lib, chaining_log, chunk_size=100_000):
+def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, chunk_size=100_000):
     mintd_path = chaining_log.get_filename(chaining_log.mintd_prefix, chaining_log.get_suffix(lib_index))
     excl_path = chaining_log.get_filename(chaining_log.exclusion_prefix, chaining_log.get_suffix(lib_index))
     ids_path = fp_lib.id_files[lib_index]
@@ -418,10 +416,11 @@ def _process_single_lib_chunked(lib_index, mintd_thresh, fp_lib, chaining_log, c
     for start in range(0, n_mols, chunk_size):
         end = min(start + chunk_size, n_mols)
         chunk_mintds = mintds[start:end]
+        chunk_bins = np.floor(chunk_mintds * 1000).astype(np.int64)
         chunk_excls = exclusions[start:end]
 
-        for i, (mintd, excl) in enumerate(zip(chunk_mintds, chunk_excls)):
-            if not excl and mintd <= mintd_thresh:
+        for i, (mintd_bin, excl) in enumerate(zip(chunk_bins, chunk_excls)):
+            if not excl and mintd_bin <= bin_thresh:
                 abs_index = start + i
                 lib_array_indices.append((lib_index, abs_index))
                 selected_indices.append(abs_index)
