@@ -49,17 +49,26 @@ def _get_data_single_file(scores_fn, excl_fn, score_thresh):
 
 @njit
 def _get_n_hits_data(scores, exclusions, score_thresh):
-    total_hits = np.sum(scores <= score_thresh)
-    n_hits_data = np.zeros((exclusions.shape[1], 4), dtype=np.int64)  # fields are n_hits, total_hits, n_docked, total_mols
-    for round_n in range(len(n_hits_data)):
-        n_docked = 0
-        n_hits = 0
-        for i in range(exclusions.shape[0]):
-            if exclusions[i, round_n]:
-                n_docked += 1
-                if scores[i] <= score_thresh:
-                    n_hits += 1
-        n_hits_data[round_n] = n_hits, total_hits, n_docked, len(exclusions)
-    return n_hits_data
+    """
+    Compute aggregated hit / docking counts for one library file.
 
+    Returns
+    -------
+    np.ndarray[int64] shape (1, 4)
+        [n_hits_below_thresh, total_hits_in_file,
+         n_docked_so_far,     total_molecules]
+    """
+    total_hits = np.sum(scores <= score_thresh)
+
+    n_docked = 0
+    n_hits = 0
+    for i in range(exclusions.shape[0]):      # 1-D access
+        if exclusions[i]:
+            n_docked += 1
+            if scores[i] <= score_thresh:
+                n_hits += 1
+
+    out = np.zeros((1, 4), dtype=np.int64)
+    out[0] = n_hits, total_hits, n_docked, exclusions.shape[0]
+    return out
 

@@ -13,6 +13,7 @@ import os
 from chemstep.job_array import SlurmJobArray, SGEJobArray
 from chemstep.utils import read_np_data
 from chemstep.id_helper import int64_to_char, char_to_int64
+from numpy.lib.format import open_memmap
 
 
 def load_from_pickle(fn):
@@ -85,8 +86,8 @@ class CSAlgo:
         if self.verbose:
             print(s)
 
-    def run_one_round(self, round_n, scores_dict):
-        beacons = self.get_beacons(scores_dict, round_n)
+    def run_one_round(self, round_n, new_indices, new_scores):
+        beacons = self.get_beacons(new_indices, new_scores, round_n)
         self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
         jobs = []
         for j in range(self.fp_lib.n_files):
@@ -105,20 +106,21 @@ class CSAlgo:
         self.used_beacons_count += len(beacons)
 
         if self.docking_method == "lookup":
-            scores_dict = self.lookup_dock(lib_array_indices, smi_list, round_n)
+            new_indices, new_scores = self.lookup_dock(lib_array_indices, smi_list, round_n)
         elif self.docking_method == "manual":
             self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
-            scores_dict = None
+            new_indices, new_scores = None, None
         else:
             raise ValueError(f"Docking method {self.docking_method} not yet implemented")
 
         if self.write_df:
-            write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.score_thresh, self.df_name)
+            print("WARNING: writing stats dataframe still not reimplemented")
+            # write_stats_df(self.scores_dir, self.chaining_log.log_folder, self.score_thresh, self.df_name)
 
         if self.use_pickle:
             with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
                 pickle.dump(self, f)
-        return scores_dict
+        return new_indices, new_scores
 
     def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
         abs_out = open(f'{self.complete_info_dir}/absolute_ids_round_{round_n}.txt', 'w')
@@ -131,17 +133,22 @@ class CSAlgo:
         abs_out.close()
 
     def linking_loop(self, score_thresh=None):
-        if self.params.screen_novelty:
-            self.screen_novelty()
-        with open(self.params.seed_scores_file, 'rb') as f:
-            scores_dict = pickle.load(f)
+        seed_indices = np.load(self.params.seed_indices_file)
+        seed_scores = np.load(self.params.seed_scores_file)
         if score_thresh is None:
-            self.set_score_thresh(scores_dict)
+            self.set_score_thresh(seed_indices, seed_scores)
+            self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
+                               f"(pProp of {self.params.hit_pprop})")
         else:
-            self.set_score_thresh(scores_dict)
+            self.set_score_thresh(seed_indices, seed_scores)  # important to remove already docked compounds
+            self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
+                               f"(pProp of {self.params.hit_pprop})")
             self.score_thresh = score_thresh
+            self.print_verbose(f"Overrode score threshold to {self.score_thresh:.2f}")
+        new_indices = seed_indices
+        new_scores = seed_scores
         for i in range(1, self.params.max_n_rounds+1):
-            scores_dict = self.run_one_round(i, scores_dict)
+            new_indices, new_scores = self.run_one_round(i, new_indices, new_scores)
 
     def run_local(self, jobs):
         p = Pool(self.n_proc)
@@ -159,12 +166,12 @@ class CSAlgo:
             job_folder=self.chaining_log.jobs_folder,
             python_exec="python",
             slurm_options={
-                "account": "rrg-najmanov",
+                "account": "rrg-mailhoto",
                 "ntasks": "1",
                 "mem": "4GB",
                 "nodes": "1",
                 "cpus-per-task": "1",
-                "time": "12:00:00"
+                "time": "1:00:00"
             }
         )
         job_id = job_array.submit()
@@ -201,7 +208,7 @@ class CSAlgo:
         for row in mintd_distrib:
             count += row[1]
             if count >= target_n:
-                mintd_thresh = row[0]
+                mintd_thresh = row[0] + 0.0005
                 break
         assert mintd_thresh is not None
 
@@ -230,34 +237,26 @@ class CSAlgo:
         docker = LookupDocking(lib_array_indices, smi_list, self.scores_fns, self.fp_lib, verbose=self.verbose)
         docker.dock_all()
         self.print_verbose("'Docking' done")
-        score_list = docker.get_score_list()
-        self.print_verbose("SCORES_ROUND_{}: {}".format(round_n, score_list))
+        new_scores = docker.get_scores_list()
+        new_indices = np.zeros(len(new_scores), dtype=np.int64)
+        self.print_verbose("SCORES_ROUND_{}: {}".format(round_n, new_scores))
         self.print_verbose("SMILES_ROUND_{}: {}".format(round_n, smi_list))
-        scores_dict = dict()
-        full_ids, scores = [], []
-        for (lib_index, arr_index), score in zip(lib_array_indices, score_list):
+
+        for i, ((lib_index, arr_index), score) in enumerate(zip(lib_array_indices, new_scores)):
             full_id = self.fp_lib.get_full_index(lib_index, arr_index)
-            if full_id in scores_dict:
-                raise ValueError("This one already in: {} (from ({}, {}))".format(full_id, lib_index, arr_index))
-            scores_dict[full_id] = score
-            if score <= self.score_thresh:
-                full_ids.append(full_id)
-                scores.append(score)
+            new_indices[i] = full_id
         if self.write_complete_info:
             with open(f"{self.complete_info_dir}/hits_round_{round_n}.df", 'w') as f:
                 f.write("full_id score\n")
-                for full_id, score in zip(full_ids, scores):
+                for full_id, score in zip(new_indices, new_scores):
                     f.write(f"{full_id} {score}\n")
-        return scores_dict
+        return new_indices, new_scores
 
-    def set_score_thresh(self, seed_scores_dict):
-        n = len(seed_scores_dict)
-        scores = np.zeros(n)
-        lib_arr_indices = np.zeros((n, 2), dtype=np.int64)
-        for i, key in enumerate(seed_scores_dict):
-            lib_arr_indices[i] = self.fp_lib.get_lib_array_indices(key)
-            scores[i] = seed_scores_dict[key]
-        self.score_thresh = np.quantile(scores, 10**(-1 * self.params.hit_pprop))
+    def set_score_thresh(self, seed_indices, seed_scores):
+        lib_arr_indices = np.zeros((len(seed_scores), 2), dtype=np.int64)
+        for i, seed_index in enumerate(seed_indices):
+            lib_arr_indices[i] = self.fp_lib.get_lib_array_indices(seed_index)
+        self.score_thresh = np.quantile(seed_scores, 10**(-1 * self.params.hit_pprop))
 
         lib_arr_dict = dict()
         for lib_i, arr_i in lib_arr_indices:
@@ -267,17 +266,64 @@ class CSAlgo:
 
         for lib_i in lib_arr_dict:
             exclusions = np.zeros(self.fp_lib.lengths[lib_i], dtype=np.uint8)
+            # TODO: make chunked
             for arr_i in lib_arr_dict[lib_i]:
                 exclusions[arr_i] = 1
             self.chaining_log.add_exclusions(exclusions, lib_i)
 
-    def get_beacons(self, scores_dict, round_n):
+    def get_beacons(self, new_indices, new_scores, round_n):
+        """
+        Select a diversity-pruned set of beacons from the latest docking results.
+
+        Parameters
+        ----------
+        new_indices : np.ndarray[int64]
+            Full indices (FpLibrary format) for the newly docked molecules.
+        new_scores : np.ndarray[float32]
+            Corresponding docking scores.
+        round_n : int
+            Current chaining round number (0-based).
+
+        Returns
+        -------
+        np.ndarray[uint8]
+            Fingerprint array (≤ max_beacons rows) for the beacons to use
+            in the next search round.
+        """
+        # 1. Add newly qualified hits to the pool of candidate beacons
+        beacons_candidates = [
+            (score, idx)
+            for idx, score in zip(new_indices, new_scores)
+            if score <= self.score_thresh
+        ]
+        self.unused_beacons.extend(beacons_candidates)
+        self.unused_beacons.sort()  # ascending score
+
+        # 2. Diversity pruning – this mutates self.unused_beacons by
+        #    popping out the selected items and returns their fingerprints
+        previous_pool = self.unused_beacons.copy()  # snapshot BEFORE pruning
+        selected_fps = self.apply_beacons_diversity()  # returns ≤ max_beacons rows
+
+        # 3. Identify which (score, index) tuples were actually kept
+        kept_pairs = [pair for pair in previous_pool if pair not in self.unused_beacons]
+
+        # 4. Optional: write full beacon info for this round
+        if self.write_complete_info:
+            outfile = f"{self.complete_info_dir}/beacons_round_{round_n}.df"
+            with open(outfile, "w") as f:
+                f.write("index score\n")
+                for score, full_id in kept_pairs:  # len(kept_pairs) == len(selected_fps)
+                    f.write(f"{full_id} {score}\n")
+
+        return selected_fps
+
+    def bak_get_beacons(self, new_indices, new_scores, round_n):
         beacons_indices = []
         beacons_scores = []
-        for index in scores_dict:
-            if scores_dict[index] <= self.score_thresh:
+        for index, score in zip(new_indices, new_scores):
+            if score <= self.score_thresh:
                 beacons_indices.append(index)
-                beacons_scores.append(scores_dict[index])
+                beacons_scores.append(score)
         self.unused_beacons += [x for x in zip(beacons_scores, beacons_indices)]
         self.unused_beacons = sorted(self.unused_beacons)
         filtered_fps = self.apply_beacons_diversity()
@@ -328,12 +374,15 @@ class CSAlgo:
             distance_vector = np.ones(len(all_fps))
         selected = np.zeros(len(all_fps), dtype=np.uint8)
         kept_beacons = []
+        distances = []
         while len(kept_beacons) < self.params.max_beacons and np.sum(selected) < len(selected):
             max_index = np.argmax(distance_vector)
+            distances.append(distance_vector[max_index])
             selected[max_index] = 1
             kept_beacons.append(self.unused_beacons[max_index])
             distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
+        self.print_verbose(f"Distances for current beacon selection: {distances}")
         return all_fps[selected == 1]
 
     def all_jobs_completed(self, round_n):
@@ -358,9 +407,9 @@ def _process_single_lib_chunked(lib_index, mintd_thresh, fp_lib, chaining_log, c
     ids_path = fp_lib.id_files[lib_index]
 
     n_mols = read_np_data(mintd_path).shape[0]
-    mintds = np.memmap(mintd_path, dtype=np.float32, mode='r', shape=(n_mols,))
-    ids = np.memmap(ids_path, dtype=np.int64, mode='r', shape=(n_mols,))
-    exclusions = np.memmap(excl_path, dtype=np.uint8, mode='r+', shape=(n_mols,))
+    mintds = open_memmap(mintd_path, dtype=np.float32, mode='r', shape=(n_mols,))
+    ids = open_memmap(ids_path, dtype=np.int64, mode='r', shape=(n_mols,))
+    exclusions = open_memmap(excl_path, dtype=np.uint8, mode='r+', shape=(n_mols,))
 
     lib_array_indices = []
     selected_indices = []
@@ -380,6 +429,11 @@ def _process_single_lib_chunked(lib_index, mintd_thresh, fp_lib, chaining_log, c
                 exclusions[abs_index] = 1  # set exclusion flag immediately
 
     exclusions.flush()  # commit new exclusions to disk
+
+    if len(lib_array_indices) == 0:
+        lib_array_indices = np.zeros((0, 2), dtype=np.int64)  # ← consistent shape
+    else:
+        lib_array_indices = np.asarray(lib_array_indices, dtype=np.int64)
 
     smi_list = fp_lib.load_smiles_indices(lib_index, selected_indices)
     return np.array(lib_array_indices, dtype=np.int64), smi_list, np.array(absolute_ids, dtype=np.int64)

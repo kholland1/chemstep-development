@@ -1,10 +1,11 @@
 from chemstep.fp_library import FpLibrary
 from chemstep.chaining_log import ChainingLog
 from chemstep.fingerprints import get_tanimoto_max_excl
-from chemstep.utils import read_np_data
+from chemstep.utils import read_np_data, mintd_histogram_stream
 import numpy as np
 import pickle
 import os
+from numpy.lib.format import open_memmap
 
 
 def run_from_pickle(pickle_path):
@@ -59,9 +60,9 @@ class SearchJob:
 
         n_mols, fp_len = read_np_data(fp_path).shape
 
-        fps = np.memmap(fp_path, dtype=np.uint8, mode='r', shape=(n_mols, fp_len))
-        exclusions = np.memmap(excl_path, dtype=np.uint8, mode='r', shape=(n_mols,))
-        mintds = np.memmap(mintd_path, dtype=np.float32, mode='r+', shape=(n_mols,))
+        fps = open_memmap(fp_path, dtype=np.uint8, mode='r', shape=(n_mols, fp_len))
+        exclusions = open_memmap(excl_path, dtype=np.uint8, mode='r', shape=(n_mols,))
+        mintds = open_memmap(mintd_path, dtype=np.float32, mode='r+', shape=(n_mols,))
 
         for start in range(0, n_mols, self.chunk_size):
             end = min(start + self.chunk_size, n_mols)
@@ -71,4 +72,13 @@ class SearchJob:
             mintds[start:end] = np.minimum(mintds[start:end], mintd_chunk)
 
         mintds.flush()
+
+        distrib = mintd_histogram_stream(mintds, exclusions, chunk_size=self.chunk_size)
+        np.save(
+            self.chaining_log.get_filename(
+                self.chaining_log.mintd_distrib_prefix,
+                self.chaining_log.get_suffix(self.lib_index)
+            ),
+            distrib
+        )
         self.completed = True

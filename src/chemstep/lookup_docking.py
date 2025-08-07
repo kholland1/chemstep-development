@@ -14,7 +14,7 @@ class LookupDocking(DockingAlgorithm):
         self.verbose = verbose
 
     def dock_all(self):  # TODO: make parallel (low priority)
-        self.score_list = [None] * len(self.lib_arr_indices)
+        self.scores_list = np.zeros(len(self.lib_arr_indices), dtype=np.float32)
         count = 0
         last_lib_index = None
         i = 0
@@ -25,17 +25,15 @@ class LookupDocking(DockingAlgorithm):
                 while i < len(self.lib_arr_indices) and self.lib_arr_indices[i][0] == lib_index:
                     indices.append(self.lib_arr_indices[i][1])
                     i += 1
-                self.score_list[count:count+len(indices)] = np.load(self.scores_fns[lib_index], mmap_mode='r')[indices]
+                self.scores_list[count:count+len(indices)] = np.load(self.scores_fns[lib_index], mmap_mode='r')[indices]
                 count += len(indices)
+
                 if self.verbose:
                     print("Now docking lib_index {}".format(lib_index))
             else:
                 i += 1
             last_lib_index = lib_index
-        assert count == len(self.score_list)
+        assert count == len(self.scores_list)
 
-    def get_score_list(self):
-        assert len(self.score_list) == len(self.lib_arr_indices)
-        for score in self.score_list:
-            assert score is not None
-        return self.score_list
+    def get_scores_list(self):
+        return self.scores_list
