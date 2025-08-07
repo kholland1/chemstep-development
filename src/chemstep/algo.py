@@ -82,9 +82,9 @@ class CSAlgo:
         self.slurm_options = slurm_options
         if sge_options is None:
             sge_options = {
-                "l": "h_rt=12:00:00",
-                "pe": "smp 1",
-                "cwd": None
+                "l": "h_rt=01:00:00",
+                "S": "/bin/bash",
+                "P": "shoichetlab"
             }
         self.sge_options = sge_options
         self.print_verbose("about to setup ChainingLog")
@@ -178,11 +178,7 @@ class CSAlgo:
         p.map(_run_one_job_local, jobs)
 
     def run_slurm_array(self, jobs, round_n):
-        for j in range(self.fp_lib.n_files):
-            pickle_path = os.path.join(self.chaining_log.jobs_folder, f"{round_n}_{j}.pickle")
-            with open(pickle_path, 'wb') as f:
-                pickle.dump(jobs[j], f)
-
+        self._dump_job_pickles(jobs, round_n)
         job_array = SlurmJobArray(
             round_n=round_n,
             n_jobs=len(jobs),
@@ -194,6 +190,7 @@ class CSAlgo:
         job_array.wait(job_id)
 
     def run_sge_array(self, jobs, round_n):
+        self._dump_job_pickles(jobs, round_n)
         job_array = SGEJobArray(
             round_n=round_n,
             n_jobs=len(jobs),
@@ -203,6 +200,12 @@ class CSAlgo:
         )
         job_id = job_array.submit()
         job_array.wait(job_id)
+
+    def _dump_job_pickles(self, jobs, round_n):
+        for j, job in enumerate(jobs):
+            with open(os.path.join(self.chaining_log.jobs_folder,
+                                   f"{round_n}_{j}.pickle"), "wb") as f:
+                pickle.dump(job, f)
 
     def get_todock_list(self, round_n):
         mintd_distrib = self.chaining_log.load_global_mintd_distrib()

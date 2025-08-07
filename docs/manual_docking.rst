@@ -1,62 +1,47 @@
-===================================
-Running ChemSTEP in “Manual” Mode
-===================================
+=================================
+Running ChemSTEP in “manual” mode
+=================================
 
-In *manual* mode ChemSTEP performs the *search / prioritization*
-rounds, but **you** handle docking outside the loop (e.g., on a local
-GPU workstation).
+In *manual* mode, ChemSTEP performs the search and selection of new molecules to dock, which you then
+build and dock on your own, and feed the scores back to ChemSTEP. For now, this is the best way to do tera-scale
+docking since you have full control over your docking, and the time involved for the docking is already on the order of
+hours/days of compute per round.
 
-Round loop
-----------
+First step: seed round
+----------------------
 
-1. **Beacon selection**
-   ``CSAlgo.get_beacons`` picks up to *max_beacons* diverse seed
-   molecules from the previous round.
+You need to provide a set of randomly selected molecules from your library, along with their docking scores, to start
+the first ChemSTEP round. For the dopamine D4 example, we used ~138k molecules (.1% of the 138M library) as the seed
+set, which can be found in the `d4lib/seed_dicts/seed_scores.npy` and `d4lib/seed_dicts/seed_indices.npy` files. These
+files specify the docking score and absolute indices (in the FpLibrary) of the seed molecules, respectively, and are set
+in the parameters file. Here's an example parameter file, which you can call `chemstep_params.txt`:
 
-2. **Similarity search** (array jobs)
-   ``SearchJob`` computes mint-D distances chunk-wise and writes:
+   .. code-block:: text
 
-   * ``mintdsXXXX.npy`` – per-molecule minimum distance
-   * ``exclXXXX.npy``   – exclusion flags
+      seed_indices_file: /wynton/group/bks/work/omailhot/d4lib/seed_dicts/seed_indices.npy
+      seed_scores_file: /wynton/group/bks/work/omailhot/d4lib/seed_dicts/seed_scores.npy
+      hit_pprop: 4
+      n_docked_per_round: 100000
+      max_beacons: 100
+      max_n_rounds: 100
 
-3. **Pick molecules to dock**
-   ``CSAlgo.get_todock_list`` collects the top
-   ``n_docked_per_round`` candidates, writing
-   ``smi_round_N.smi`` and ``absolute_ids_round_N.txt`` in
-   *complete_info_dir*.
-
-4. **Dock externally**
-   You run your favourite docking software, producing
-   a *score_dict* mapping ``absolute_id → docking_score``.
-
-5. **Seed next round**
+From these, you can seed ChemSTEP as follows:
 
    .. code-block:: python
 
-      with open('round1_scores.pkl', 'wb') as fh:
-          pickle.dump(score_dict, fh)
+      from chemstep import CSAlgo
+      from chemstep.fp_library import load_library_from_pickle
 
-      scores_dict = pickle.load(open('round1_scores.pkl', 'rb'))
-      algo.run_one_round(round_n=2, scores_dict=scores_dict)
+      fplib = load_library_from_pickle('/wynton/group/bks/work/omailhot/d4lib/fplib.pickle')
+      algo = CSAlgo(fplib, 'chemstep_params.txt', 'output_directory', 32)
 
-Cluster submission helpers
---------------------------
+The 4 required arguments to `CSAlgo` are:
 
-ChemSTEP provides two convenience wrappers for launching array jobs:
+1. The fingerprint library, which you can load from a pickle file.
 
-* :py:class:`chemstep.job_array.SlurmJobArray` – builds a SLURM batch script, submits it, and polls for completion.
-* :py:class:`chemstep.job_array.SGEJobArray` – equivalent helper for Sun Grid Engine / UGE clusters.
+2. The path to the parameters file.
 
+3. The output directory where ChemSTEP will save its results.
 
-These autogenerate array scripts (`run_array_round_N.sh`) with sensible
-defaults that you can override via ``slurm_options``/``sge_options``.
+4. The number of parallel processes in the main job. 32 is a good number (the main job will need to run with 32 CPUs).
 
-Tips & pitfalls
----------------
-
-* **Flush exclusions**: mint-D updates are `memmap`-backed; always wait
-  for array jobs to finish (or call ``CSAlgo.all_jobs_completed``)
-  before starting the next round.
-* **Score orientation**: ChemSTEP assumes *lower* scores are *better*
-  (typical of docking).  For scoring schemes where *higher* is better,
-  simply negate.

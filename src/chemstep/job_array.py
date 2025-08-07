@@ -133,20 +133,40 @@ class SGEJobArray(JobArray):
         return job_id
 
     def wait(self, job_id, poll_interval=30, timeout=36000):
+        """Block until every task in the SGE array has finished."""
         print(f"[INFO] Waiting for SGE job array {job_id} to complete...")
-        start_time = time.time()
+        start = time.time()
 
         while True:
-            result = subprocess.run(["qstat"], capture_output=True, text=True)
-            if result.returncode != 0:
-                raise RuntimeError("Failed to query SGE job status using qstat.")
+            # show queued (qw) + running (r/R/t) jobs for this user
+            qstat = subprocess.run(
+                ["qstat", "-u", os.getenv("USER")],
+                capture_output=True, text=True
+            )
 
-            running = any(line.startswith(job_id) for line in result.stdout.strip().splitlines())
-            if not running:
-                print(f"[INFO] SGE job array {job_id} no longer running.")
-                return
+            active = any(
+                line.split()[0].startswith(job_id)
+                for line in qstat.stdout.strip().splitlines()
+            )
 
-            if time.time() - start_time > timeout:
-                raise TimeoutError(f"SGE job array {job_id} did not complete within {timeout} seconds.")
+            if active:
+                # still in queue → keep waiting
+                pass
+            else:
+                # array vanished from qstat: look for it in accounting
+                acc = subprocess.run(
+                    ["qacct", "-j", job_id],
+                    capture_output=True, text=True
+                )
+                if acc.returncode == 0 and "exit_status" in acc.stdout:
+                    print(f"[INFO] SGE job array {job_id} completed.")
+                    return              # success
+                else:
+                    print("[INFO] Job not yet in accounting; scheduler still assigning IDs…")
+
+            if time.time() - start > timeout:
+                raise TimeoutError(
+                    f"SGE job array {job_id} did not complete within {timeout} s."
+                )
 
             time.sleep(poll_interval)
