@@ -173,11 +173,8 @@ class SGEJobArray(JobArray):
                         raise RuntimeError(
                             f"Some tasks in array {job_id} reported failure:\n{acc.stdout}"
                         )
-                    print(f"[INFO] SGE job array {job_id} completed.")
-                    return
-
-                # else: not in accounting yet (scheduler lag)
-                print("[INFO] Array no longer in qstat; waiting for accounting update…")
+                print(f"[INFO] SGE job array {job_id} appears to have completed.")
+                return
 
             if time.time() - t0 > timeout:
                 raise TimeoutError(

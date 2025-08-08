@@ -51,9 +51,18 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#chemstep.version"><code class="docutils literal notranslate"><span class="pre">version()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#chemstep.algo.CSAlgo"><code class="docutils literal notranslate"><span class="pre">CSAlgo</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.output_directory"><code class="docutils literal notranslate"><span class="pre">CSAlgo.output_directory</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.fp_lib"><code class="docutils literal notranslate"><span class="pre">CSAlgo.fp_lib</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.params"><code class="docutils literal notranslate"><span class="pre">CSAlgo.params</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.chaining_log"><code class="docutils literal notranslate"><span class="pre">CSAlgo.chaining_log</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.book"><code class="docutils literal notranslate"><span class="pre">CSAlgo.book</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.score_thresh"><code class="docutils literal notranslate"><span class="pre">CSAlgo.score_thresh</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.unused_beacons"><code class="docutils literal notranslate"><span class="pre">CSAlgo.unused_beacons</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.current_beacons"><code class="docutils literal notranslate"><span class="pre">CSAlgo.current_beacons</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.current_beacons_dists"><code class="docutils literal notranslate"><span class="pre">CSAlgo.current_beacons_dists</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.current_mintd_thresh"><code class="docutils literal notranslate"><span class="pre">CSAlgo.current_mintd_thresh</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.used_beacons_fps"><code class="docutils literal notranslate"><span class="pre">CSAlgo.used_beacons_fps</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.used_beacons_count"><code class="docutils literal notranslate"><span class="pre">CSAlgo.used_beacons_count</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.all_jobs_completed"><code class="docutils literal notranslate"><span class="pre">CSAlgo.all_jobs_completed()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.apply_beacons_diversity"><code class="docutils literal notranslate"><span class="pre">CSAlgo.apply_beacons_diversity()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.apply_beacons_diversity_maxdiv"><code class="docutils literal notranslate"><span class="pre">CSAlgo.apply_beacons_diversity_maxdiv()</span></code></a></li>
@@ -133,13 +142,59 @@ and <code class="xref py py-mod docutils literal notranslate"><span class="pre">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">chemstep.algo.</span></span><span class="sig-name descname"><span class="pre">CSAlgo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fp_lib</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chemstep_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_proc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pickle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pickle_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chemstep_algo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_setup</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">docking_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'manual'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smi_id_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CSLB'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scheduler</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">python_exec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slurm_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sge_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scores_fns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.algo.CSAlgo" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Main class for the ChemSTEP algorithm. Parameters are set, jobs are created, results are pooled,
-basically everything is handled by a single CSAlgo object. The object can be built from a previously pickled
-representation, which makes restarting/continuing easier.</p>
+<p>ChemSTEP (Chemical Space Traversal and Exploration Procedure) controller that orchestrates chaining rounds.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">CSAlgo</span></code> instance owns the run state: the input library, user
+parameters, persistent logging, job orchestration (local or on a
+scheduler), and selection of maximally diverse beacons across rounds.
+It can be pickled between rounds to make resuming trivial, for instance in the case of
+manual docking where the user generates the docking scores to feed back into ChemSTEP for
+the next round of search.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fp_lib</strong> (<em>FpLibrary</em>) – Precomputed fingerprint/ID/SMILES library to traverse.</p></li>
+<li><p><strong>chemstep_params</strong> (<a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><em>CSParams</em></a><em> | </em><em>str</em>) – Either a <a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">CSParams</span></code></a> instance or a path to
+a parameter file parseable via <code class="xref py py-func docutils literal notranslate"><span class="pre">read_param_file()</span></code>.</p></li>
+<li><p><strong>output_directory</strong> (<em>str</em>) – Directory where ChemSTEP writes logs, intermediate arrays, and jobs.</p></li>
+<li><p><strong>n_proc</strong> (<em>int</em>) – Number of local worker processes when running without a scheduler.</p></li>
+<li><p><strong>use_pickle</strong> (<em>bool</em><em>, </em><em>default=True</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, write a pickle of <code class="docutils literal notranslate"><span class="pre">self</span></code> at the end of each round.</p></li>
+<li><p><strong>pickle_prefix</strong> (<em>str</em><em>, </em><em>default=&quot;chemstep_algo&quot;</em>) – Prefix for per‑round pickles (<code class="docutils literal notranslate"><span class="pre">{prefix}_{round}.pickle</span></code>).</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>default=False</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, print progress messages.</p></li>
+<li><p><strong>skip_setup</strong> (<em>bool</em><em>, </em><em>default=False</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, reuse existing chaining files (no zero‑fill init).</p></li>
+<li><p><strong>info_dir</strong> (<em>str</em><em> | </em><em>None</em><em>, </em><em>default=None</em>) – Directory for human‑readable per‑round artifacts
+(SMI, histograms, docked lists). Defaults to
+<code class="docutils literal notranslate"><span class="pre">{output_directory}/complete_info</span></code>.</p></li>
+<li><p><strong>docking_method</strong> (<em>{&quot;manual&quot;</em><em>,</em><em>&quot;lookup&quot;}</em><em>, </em><em>default=&quot;manual&quot;</em>) – How to obtain scores for prioritized molecules. <code class="docutils literal notranslate"><span class="pre">&quot;manual&quot;</span></code> writes
+a SMI list and returns <code class="docutils literal notranslate"><span class="pre">(None,</span> <span class="pre">None)</span></code>; <code class="docutils literal notranslate"><span class="pre">&quot;lookup&quot;</span></code> fetches scores
+from precomputed arrays given in <code class="docutils literal notranslate"><span class="pre">scores_fns</span></code>.</p></li>
+<li><p><strong>smi_id_prefix</strong> (<em>str</em><em>, </em><em>default=&quot;CSLB&quot;</em>) – Prefix used when writing SMILES IDs (e.g., <code class="docutils literal notranslate"><span class="pre">CSLB000…</span></code>).</p></li>
+<li><p><strong>scheduler</strong> (<em>{&quot;slurm&quot;</em><em>,</em><em>&quot;sge&quot;</em><em>,</em><em>None}</em><em>, </em><em>default=None</em>) – If set, distribute search jobs as an array on the chosen scheduler.
+Otherwise, run locally with multiprocessing.</p></li>
+<li><p><strong>python_exec</strong> (<em>str</em><em> | </em><em>None</em><em>, </em><em>default=None</em>) – Python executable to use inside scheduler array tasks (e.g., the path
+to your venv’s <code class="docutils literal notranslate"><span class="pre">python</span></code>). If <code class="docutils literal notranslate"><span class="pre">None</span></code> with a scheduler, defaults to
+<code class="docutils literal notranslate"><span class="pre">&quot;python&quot;</span></code>.</p></li>
+<li><p><strong>slurm_options</strong> (<em>dict</em><em> | </em><em>None</em><em>, </em><em>default=None</em>) – Extra/override <code class="docutils literal notranslate"><span class="pre">#SBATCH</span></code> options (e.g., <code class="docutils literal notranslate"><span class="pre">{&quot;time&quot;:</span> <span class="pre">&quot;2:00:00&quot;}</span></code>).</p></li>
+<li><p><strong>sge_options</strong> (<em>dict</em><em> | </em><em>None</em><em>, </em><em>default=None</em>) – Extra/override <code class="docutils literal notranslate"><span class="pre">#$</span> <span class="pre">-</span></code> options for SGE arrays.</p></li>
+<li><p><strong>scores_fns</strong> (<em>list</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em><em>, </em><em>default=None</em>) – Required when <code class="docutils literal notranslate"><span class="pre">docking_method=&quot;lookup&quot;</span></code>. One path per library file
+to a <code class="docutils literal notranslate"><span class="pre">float32</span></code> <code class="docutils literal notranslate"><span class="pre">.npy</span></code> of scores aligned to IDs.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.output_directory">
+<span class="sig-name descname"><span class="pre">output_directory</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.output_directory" title="Link to this definition"></a></dt>
+<dd><p>Base directory for run artifacts and chaining arrays.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.fp_lib">
 <span class="sig-name descname"><span class="pre">fp_lib</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.fp_lib" title="Link to this definition"></a></dt>
-<dd><p>The library of considered molecules (precomputed fingerprints as NumPy arrays)</p>
+<dd><p>The working library.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>FpLibrary</p>
@@ -150,7 +205,7 @@ representation, which makes restarting/continuing easier.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.params">
 <span class="sig-name descname"><span class="pre">params</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.params" title="Link to this definition"></a></dt>
-<dd><p>The parameters for this run of ChemSTEP</p>
+<dd><p>Parsed parameters for this run.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams">CSParams</a></p>
@@ -161,7 +216,7 @@ representation, which makes restarting/continuing easier.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.chaining_log">
 <span class="sig-name descname"><span class="pre">chaining_log</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.chaining_log" title="Link to this definition"></a></dt>
-<dd><p>The object doing the bookkeeping as the rounds progress</p>
+<dd><p>Manager for exclusions, MiNTD arrays, and histograms.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>ChainingLog</p>
@@ -169,6 +224,107 @@ representation, which makes restarting/continuing easier.</p>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.book">
+<span class="sig-name descname"><span class="pre">book</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.book" title="Link to this definition"></a></dt>
+<dd><p>Streams <code class="docutils literal notranslate"><span class="pre">run_summary.df</span></code> and <code class="docutils literal notranslate"><span class="pre">beacons.df</span></code> as the run progresses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Bookkeeper</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.score_thresh">
+<span class="sig-name descname"><span class="pre">score_thresh</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.score_thresh" title="Link to this definition"></a></dt>
+<dd><p>Current docking score threshold defining a “hit”.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.unused_beacons">
+<span class="sig-name descname"><span class="pre">unused_beacons</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.unused_beacons" title="Link to this definition"></a></dt>
+<dd><p>Candidate beacons as <code class="docutils literal notranslate"><span class="pre">(score,</span> <span class="pre">full_index)</span></code> pairs not yet used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple[float, int]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.current_beacons">
+<span class="sig-name descname"><span class="pre">current_beacons</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.current_beacons" title="Link to this definition"></a></dt>
+<dd><p>Beacons used in the <em>most recent</em> search round.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple[float, int]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.current_beacons_dists">
+<span class="sig-name descname"><span class="pre">current_beacons_dists</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.current_beacons_dists" title="Link to this definition"></a></dt>
+<dd><p>Per‑beacon novelty distances (1 − max Tanimoto) against the set of
+previously used beacons when they were selected.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.current_mintd_thresh">
+<span class="sig-name descname"><span class="pre">current_mintd_thresh</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.current_mintd_thresh" title="Link to this definition"></a></dt>
+<dd><p>The continuous MiNTD threshold (bin center) used to choose molecules
+to dock this round.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.used_beacons_fps">
+<span class="sig-name descname"><span class="pre">used_beacons_fps</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.used_beacons_fps" title="Link to this definition"></a></dt>
+<dd><p>Ring buffer of fingerprints for all previously used beacons with
+shape <code class="docutils literal notranslate"><span class="pre">(max_n_rounds</span> <span class="pre">*</span> <span class="pre">max_beacons,</span> <span class="pre">fp_len_bytes)</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[uint8]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.algo.CSAlgo.used_beacons_count">
+<span class="sig-name descname"><span class="pre">used_beacons_count</span></span><a class="headerlink" href="#chemstep.algo.CSAlgo.used_beacons_count" title="Link to this definition"></a></dt>
+<dd><p>Number of rows currently valid in <code class="docutils literal notranslate"><span class="pre">used_beacons_fps</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>“MiNTD” refers to <em>minimum Tanimoto distance</em> = <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">−</span> <span class="pre">max_tanimoto</span></code>.</p></li>
+<li><p>Exclusions are updated immediately when a molecule is selected
+to dock so it cannot be re‑selected in later rounds.</p></li>
+</ul>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.parameters.CSParams</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.fp_library.FpLibrary</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.chaining_log.ChainingLog</span></code></p>
+</div>
 <dl class="py method">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.all_jobs_completed">
 <span class="sig-name descname"><span class="pre">all_jobs_completed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">round_n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.algo.CSAlgo.all_jobs_completed" title="Link to this definition"></a></dt>

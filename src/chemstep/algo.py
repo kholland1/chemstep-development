@@ -14,6 +14,7 @@ from chemstep.utils import read_np_data
 from chemstep.id_helper import int64_to_char, char_to_int64
 from numpy.lib.format import open_memmap
 from chemstep.bookkeeper import Bookkeeper
+import threading, glob, time
 
 
 def load_from_pickle(fn):
@@ -24,14 +25,100 @@ def load_from_pickle(fn):
 
 
 class CSAlgo:
-    """ Main class for the ChemSTEP algorithm. Parameters are set, jobs are created, results are pooled,
-        basically everything is handled by a single CSAlgo object. The object can be built from a previously pickled
-        representation, which makes restarting/continuing easier.
+    """ChemSTEP (Chemical Space Traversal and Exploration Procedure) controller that orchestrates chaining rounds.
 
-        Attributes:
-            fp_lib (FpLibrary): The library of considered molecules (precomputed fingerprints as NumPy arrays)
-            params (CSParams): The parameters for this run of ChemSTEP
-            chaining_log (ChainingLog): The object doing the bookkeeping as the rounds progress
+    A ``CSAlgo`` instance owns the run state: the input library, user
+    parameters, persistent logging, job orchestration (local or on a
+    scheduler), and selection of maximally diverse beacons across rounds.
+    It can be pickled between rounds to make resuming trivial, for instance in the case of
+    manual docking where the user generates the docking scores to feed back into ChemSTEP for
+    the next round of search.
+
+    Parameters
+    ----------
+    fp_lib : FpLibrary
+        Precomputed fingerprint/ID/SMILES library to traverse.
+    chemstep_params : CSParams | str
+        Either a :class:`~chemstep.parameters.CSParams` instance or a path to
+        a parameter file parseable via :func:`~chemstep.parameters.read_param_file`.
+    output_directory : str
+        Directory where ChemSTEP writes logs, intermediate arrays, and jobs.
+    n_proc : int
+        Number of local worker processes when running without a scheduler.
+    use_pickle : bool, default=True
+        If ``True``, write a pickle of ``self`` at the end of each round.
+    pickle_prefix : str, default="chemstep_algo"
+        Prefix for per‑round pickles (``{prefix}_{round}.pickle``).
+    verbose : bool, default=False
+        If ``True``, print progress messages.
+    skip_setup : bool, default=False
+        If ``True``, reuse existing chaining files (no zero‑fill init).
+    info_dir : str | None, default=None
+        Directory for human‑readable per‑round artifacts
+        (SMI, histograms, docked lists). Defaults to
+        ``{output_directory}/complete_info``.
+    docking_method : {"manual","lookup"}, default="manual"
+        How to obtain scores for prioritized molecules. ``"manual"`` writes
+        a SMI list and returns ``(None, None)``; ``"lookup"`` fetches scores
+        from precomputed arrays given in ``scores_fns``.
+    smi_id_prefix : str, default="CSLB"
+        Prefix used when writing SMILES IDs (e.g., ``CSLB000…``).
+    scheduler : {"slurm","sge",None}, default=None
+        If set, distribute search jobs as an array on the chosen scheduler.
+        Otherwise, run locally with multiprocessing.
+    python_exec : str | None, default=None
+        Python executable to use inside scheduler array tasks (e.g., the path
+        to your venv’s ``python``). If ``None`` with a scheduler, defaults to
+        ``"python"``.
+    slurm_options : dict | None, default=None
+        Extra/override ``#SBATCH`` options (e.g., ``{"time": "2:00:00"}``).
+    sge_options : dict | None, default=None
+        Extra/override ``#$ -`` options for SGE arrays.
+    scores_fns : list[str] | None, default=None
+        Required when ``docking_method="lookup"``. One path per library file
+        to a ``float32`` ``.npy`` of scores aligned to IDs.
+
+    Attributes
+    ----------
+    output_directory : str
+        Base directory for run artifacts and chaining arrays.
+    fp_lib : FpLibrary
+        The working library.
+    params : CSParams
+        Parsed parameters for this run.
+    chaining_log : ChainingLog
+        Manager for exclusions, minTD arrays, and histograms.
+    book : Bookkeeper
+        Streams ``run_summary.df`` and ``beacons.df`` as the run progresses.
+    score_thresh : float | None
+        Current docking score threshold defining a “hit”.
+    unused_beacons : list[tuple[float, int]]
+        Candidate beacons as ``(score, full_index)`` pairs not yet used.
+    current_beacons : list[tuple[float, int]]
+        Beacons used in the *most recent* search round.
+    current_beacons_dists : list[float]
+        Per‑beacon novelty distances (1 − max Tanimoto) against the set of
+        previously used beacons when they were selected.
+    current_mintd_thresh : float | None
+        The continuous minTD threshold (bin center) used to choose molecules
+        to dock this round.
+    used_beacons_fps : np.ndarray[uint8]
+        Ring buffer of fingerprints for all previously used beacons with
+        shape ``(max_n_rounds * max_beacons, fp_len_bytes)``.
+    used_beacons_count : int
+        Number of rows currently valid in ``used_beacons_fps``.
+
+    Notes
+    -----
+    * “minTD” refers to *minimum Tanimoto distance* = ``1 − max_tanimoto``.
+    * Exclusions are updated immediately when a molecule is selected
+      to dock so it cannot be re‑selected in later rounds.
+
+    See Also
+    --------
+    chemstep.parameters.CSParams
+    chemstep.fp_library.FpLibrary
+    chemstep.chaining_log.ChainingLog
     """
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
@@ -103,10 +190,49 @@ class CSAlgo:
         self.used_beacons_count = 0
 
     def print_verbose(self, s):
+        """Print a message only if ``verbose`` is enabled.
+
+        Parameters
+        ----------
+        s : str
+            Message to print.
+        """
         if self.verbose:
             print(s)
 
     def run_one_round(self, round_n, new_indices, new_scores):
+        """Execute a complete ChemSTEP round.
+
+        Steps:
+          1) Log previous round summary (if ``round_n > 1``).
+          2) Select maximally beacons from all found hits still unused as beacons (includes latest docked hits).
+          3) Search the whole library for closest neighbors (update minTD).
+          4) Choose molecules to dock based on global minTD histogram.
+          5) Produce SMI/ID lists and either return ``None`` (manual) or
+             lookup new scores and return them.
+
+        Parameters
+        ----------
+        round_n : int
+            1‑based round index.
+        new_indices : np.ndarray | None
+            Full indices from the **previous** docking batch (or ``None`` for
+            the first call when using ``manual`` docking).
+        new_scores : np.ndarray | None
+            Scores aligned to ``new_indices`` (or ``None`` for the first call
+            when using ``manual`` docking).
+
+        Returns
+        -------
+        (np.ndarray | None, np.ndarray | None)
+            ``(new_indices, new_scores)`` for this round when using
+            ``docking_method="lookup"``; ``(None, None)`` for ``"manual"``.
+
+        Raises
+        ------
+        RuntimeError
+            If array jobs did not complete successfully.
+        """
         if round_n > 1:
             n_hits = int(np.sum(new_scores <= self.score_thresh))
             beacon_ids = [b[1] for b in self.current_beacons]
@@ -126,6 +252,9 @@ class CSAlgo:
             self.run_sge_array(jobs, round_n)
         else:
             self.run_local(jobs)
+        if not self.all_jobs_completed(round_n):
+            raise RuntimeError(f"Not all jobs for round {round_n} completed. Check the job folder: {self.chaining_log.jobs_folder}")
+        # TODO: delete outputs and pickles of completed jobs, ideally in an async manner
         self.print_verbose("Starting docking for round {}".format(round_n))
         lib_array_indices, smi_list, absolute_ids = self.get_todock_list(round_n)
         self.used_beacons_fps[self.used_beacons_count:self.used_beacons_count+len(beacons)] = beacons
@@ -146,6 +275,23 @@ class CSAlgo:
         return new_indices, new_scores
 
     def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
+        """Write the SMI file and an accompanying absolute‑ID list for a round.
+
+        Creates two files in ``info_dir``:
+          * ``smi_round_{round_n}.smi`` containing ``<SMILES> <prefixed-ID>``.
+          * ``absolute_ids_round_{round_n}.txt`` containing raw int64 IDs.
+
+        Parameters
+        ----------
+        smi_list : list[str]
+            SMILES selected to dock.
+        lib_array_indices : np.ndarray
+            Array of shape ``(N, 2)`` with ``(lib_index, array_index)``.
+        round_n : int
+            Current round number.
+        absolute_ids : np.ndarray
+            Aligned absolute IDs (typically ZINC ints).
+        """
         abs_out = open(f'{self.info_dir}/absolute_ids_round_{round_n}.txt', 'w')
         with open("{}/smi_round_{}.smi".format(self.info_dir, round_n), 'w') as f:
             for smi, lib_arr, abs_id in zip(smi_list, lib_array_indices, absolute_ids):
@@ -156,6 +302,22 @@ class CSAlgo:
         abs_out.close()
 
     def seed(self, score_thresh=None):
+        """Initialize from the seed set and compute the hit threshold.
+
+        Reads the seed indices and scores, computes the default score
+        threshold from ``hit_pprop`` (unless overridden), and marks all
+        seed molecules as excluded.
+
+        Parameters
+        ----------
+        score_thresh : float | None, default=None
+            If provided, override the automatically computed threshold.
+
+        Returns
+        -------
+        (np.ndarray, np.ndarray)
+            ``(seed_indices, seed_scores)`` as loaded from files.
+        """
         seed_indices = np.load(self.params.seed_indices_file)
         seed_scores = np.load(self.params.seed_scores_file)
         if score_thresh is None:
@@ -171,16 +333,40 @@ class CSAlgo:
         return seed_indices, seed_scores
 
     def linking_loop(self, score_thresh=None):
+        """Run the full multi‑round chaining process. For now, this only works in 'lookup' docking
+        mode, until a pure Python docking implementation is available.
+
+        Parameters
+        ----------
+        score_thresh : float | None, default=None
+            Optional override of the seed‑derived score threshold.
+        """
         new_indices, new_scores = self.seed(score_thresh=score_thresh)
         for i in range(1, self.params.max_n_rounds+1):
             new_indices, new_scores = self.run_one_round(i, new_indices, new_scores)
 
     def run_local(self, jobs):
+        """Execute search jobs locally with multiprocessing.
+
+        Parameters
+        ----------
+        jobs : list[SearchJob]
+            One job per library shard/file.
+        """
         p = Pool(self.n_proc)
         p.map(_run_one_job_local, jobs)
 
     def run_slurm_array(self, jobs, round_n):
-        self._dump_job_pickles(jobs, round_n)
+        """Submit search jobs as a Slurm array and wait for completion.
+
+        Parameters
+        ----------
+        jobs : list[SearchJob]
+            Jobs to pickle and submit.
+        round_n : int
+            Current round number (used in filenames).
+        """
+        self.dump_job_pickles(jobs, round_n)
         job_array = SlurmJobArray(
             round_n=round_n,
             n_jobs=len(jobs),
@@ -192,7 +378,16 @@ class CSAlgo:
         job_array.wait(job_id)
 
     def run_sge_array(self, jobs, round_n):
-        self._dump_job_pickles(jobs, round_n)
+        """Submit search jobs as an SGE array and wait for completion.
+
+        Parameters
+        ----------
+        jobs : list[SearchJob]
+            Jobs to pickle and submit.
+        round_n : int
+            Current round number (used in filenames).
+        """
+        self.dump_job_pickles(jobs, round_n)
         job_array = SGEJobArray(
             round_n=round_n,
             n_jobs=len(jobs),
@@ -203,13 +398,47 @@ class CSAlgo:
         job_id = job_array.submit()
         job_array.wait(job_id)
 
-    def _dump_job_pickles(self, jobs, round_n):
+    def dump_job_pickles(self, jobs, round_n):
+        """Serialize per‑file :class:`SearchJob` objects to the jobs folder.
+
+        Filenames follow ``{round_n}_{file_index}.pickle``.
+
+        Parameters
+        ----------
+        jobs : list[SearchJob]
+            Jobs to serialize.
+        round_n : int
+            Round used in the filename stem.
+        """
         for j, job in enumerate(jobs):
             with open(os.path.join(self.chaining_log.jobs_folder,
                                    f"{round_n}_{j}.pickle"), "wb") as f:
                 pickle.dump(job, f)
 
     def get_todock_list(self, round_n):
+        """Choose the next batch to dock based on global minTD.
+
+        Computes the global minTD histogram across all library shards,
+        selects the smallest minTD bin whose cumulative count meets
+        ``n_docked_per_round``, and returns all still‑eligible molecules
+        at or below that bin. Eligible molecules are marked excluded
+        immediately to prevent reselection.
+
+        Parameters
+        ----------
+        round_n : int
+            Current round (used only for logging filenames).
+
+        Returns
+        -------
+        (np.ndarray, list[str], np.ndarray)
+            ``(lib_array_indices, smiles, absolute_ids)`` where
+            ``lib_array_indices`` has shape ``(N, 2)``.
+
+        Notes
+        -----
+        Also writes ``mintd_distrib_{round_n}.df`` for inspection.
+        """
         mintd_distrib = self.chaining_log.load_global_mintd_distrib()
         with open(f"{self.info_dir}/mintd_distrib_{round_n}.df", 'w') as f:
             f.write("mintd count\n")
@@ -250,6 +479,27 @@ class CSAlgo:
         return lib_array_indices, all_smiles, absolute_ids
 
     def lookup_dock(self, lib_array_indices, smi_list, round_n):
+        """Retrieve scores for a batch using precomputed arrays.
+
+        Parameters
+        ----------
+        lib_array_indices : np.ndarray
+            Array of ``(lib_index, array_index)`` pairs to score.
+        smi_list : list[str]
+            SMILES (unused for lookup; kept for interface symmetry).
+        round_n : int
+            Round number for output filenames.
+
+        Returns
+        -------
+        (np.ndarray, np.ndarray)
+            ``(full_indices, scores)`` aligned arrays for the batch.
+
+        Raises
+        ------
+        AssertionError
+            If ``scores_fns`` is missing or misaligned with the library.
+        """
         self.print_verbose("About to start 'docking'")
         docker = LookupDocking(lib_array_indices, smi_list, self.scores_fns, self.fp_lib, verbose=self.verbose)
         docker.dock_all()
@@ -267,6 +517,19 @@ class CSAlgo:
         return new_indices, new_scores
 
     def set_score_thresh(self, seed_indices, seed_scores):
+        """Compute and store the docking score threshold; exclude seeds.
+
+        The threshold is the quantile ``10^(−hit_pprop)`` over
+        ``seed_scores``. All seed molecules are marked as excluded in
+        their corresponding library shards.
+
+        Parameters
+        ----------
+        seed_indices : np.ndarray
+            Full indices of seed molecules (``FpLibrary`` indexing).
+        seed_scores : np.ndarray
+            Docking scores aligned to ``seed_indices``.
+        """
         lib_arr_indices = np.zeros((len(seed_scores), 2), dtype=np.int64)
         for i, seed_index in enumerate(seed_indices):
             lib_arr_indices[i] = self.fp_lib.get_lib_array_indices(seed_index)
@@ -285,33 +548,30 @@ class CSAlgo:
                 exclusions[arr_i] = 1
             self.chaining_log.add_exclusions(exclusions, lib_i)
 
-    def get_beacons(self, new_indices, new_scores, round_n):
-        """
-        Select a diversity-pruned set of beacons from the latest docking results.
+    def get_beacons(self, new_indices, new_scores):
+        """Select a maximally diverse set of beacons from latest hits (max-min Tanimoto distance to previous beacons).
 
         Parameters
         ----------
-        new_indices : np.ndarray[int64]
-            Full indices (FpLibrary format) for the newly docked molecules.
-        new_scores : np.ndarray[float32]
+        new_indices : np.ndarray
+            Full indices for the newly docked molecules.
+        new_scores : np.ndarray
             Corresponding docking scores.
-        round_n : int
-            Current chaining round number (0-based).
 
         Returns
         -------
-        np.ndarray[uint8]
-            Fingerprint array (≤ max_beacons rows) for the beacons to use
-            in the next search round.
+        np.ndarray
+            Fingerprints with shape ``(≤ max_beacons, fp_len_bytes)`` for
+            the beacons to use in the next search round.
         """
-        # 1. Add newly qualified hits to the pool of candidate beacons
+
         beacons_candidates = [
             (score, idx)
             for idx, score in zip(new_indices, new_scores)
             if score <= self.score_thresh
         ]
         self.unused_beacons.extend(beacons_candidates)
-        self.unused_beacons.sort()  # ascending score
+        self.unused_beacons.sort()  # minimum score is best
 
         selected_fps = self.apply_beacons_diversity()
 
@@ -321,10 +581,23 @@ class CSAlgo:
         raise ValueError("screen_novelty() not yet implemented")
 
     def apply_beacons_diversity(self):
+        """Apply the configured beacon diversity strategy, which for now as always maximal diversity.
+
+        Returns
+        -------
+        np.ndarray
+            Fingerprints for the selected beacons.
+        """
         return self.apply_beacons_diversity_maxdiv()
 
     def load_all_fps_unused_beacons(self):
-        # fingerprints for all unused beacons
+        """Load fingerprints for all currently unused beacon candidates.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape ``(n_unused, fp_len_bytes)``.
+        """
         all_fps = np.zeros((len(self.unused_beacons), self.fp_lib.fp_length_bytes), dtype=np.uint8)
 
         # dict of dicts to untangle library indices
@@ -343,6 +616,19 @@ class CSAlgo:
         return all_fps
 
     def apply_beacons_diversity_maxdiv(self):
+        """Greedy max‑diversity (farthest‑first) selection of beacons.
+
+        Iteratively picks the candidate with maximum minTD to the set of
+        already used beacons; updates the running distance vector to
+        enforce diversity, and keeps at most ``max_beacons``.
+
+        Returns
+        -------
+        np.ndarray
+            Fingerprints of the selected beacons (rows correspond to the
+            chosen candidates). Also updates ``current_beacons``,
+            ``current_beacons_dists``, and prunes ``unused_beacons`` in‑place.
+        """
         all_fps = self.load_all_fps_unused_beacons()
         if self.used_beacons_count > 0:
             distance_vector = 1 - get_tanimoto_max(self.used_beacons_fps[:self.used_beacons_count], all_fps)
@@ -363,13 +649,25 @@ class CSAlgo:
         return all_fps[selected == 1]
 
     def all_jobs_completed(self, round_n):
+        """Check that every per‑file search job pickle is present and completed.
+
+        Parameters
+        ----------
+        round_n : int
+            Round to check.
+
+        Returns
+        -------
+        bool
+            ``True`` if all jobs report ``completed=True``, else ``False``.
+        """
         for j in range(self.fp_lib.n_files):
             pickle_path = os.path.join(self.chaining_log.jobs_folder, f"{round_n}_{j}.pickle")
             if not os.path.exists(pickle_path):
                 return False
             with open(pickle_path, 'rb') as f:
                 job = pickle.load(f)
-            if not getattr(job, 'completed', False):
+            if not job.completed:
                 return False
         return True
 
