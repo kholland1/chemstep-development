@@ -208,7 +208,7 @@ class CSAlgo:
           2) Select maximally beacons from all found hits still unused as beacons (includes latest docked hits).
           3) Search the whole library for closest neighbors (update minTD).
           4) Choose molecules to dock based on global minTD histogram.
-          5) Produce SMI/ID lists and either return ``None`` (manual) or
+          5) Produce SMILES/ID lists and either return ``None`` (manual) or
              lookup new scores and return them.
 
         Parameters
@@ -239,22 +239,33 @@ class CSAlgo:
             beacon_scores = [b[0] for b in self.current_beacons]
             self.book.log_round(round_n-1, len(new_indices), n_hits, self.current_mintd_thresh,
                                 beacon_ids, beacon_scores, self.current_beacons_dists)
-        beacons = self.get_beacons(new_indices, new_scores, round_n)
+        beacons = self.get_beacons(new_indices, new_scores)
         self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
         jobs = []
         for j in range(self.fp_lib.n_files):
             unique_id = "{}_{}".format(round_n, j)
             job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
             jobs.append(job)
+        array_jobid = None
         if self.scheduler == "slurm":
-            self.run_slurm_array(jobs, round_n)
+            array_jobid = self.run_slurm_array(jobs, round_n)
         elif self.scheduler == "sge":
-            self.run_sge_array(jobs, round_n)
+            array_jobid = self.run_sge_array(jobs, round_n)
         else:
+            if self.scheduler is not None:
+                raise ValueError(f"Unsupported scheduler: {self.scheduler}")
             self.run_local(jobs)
         if not self.all_jobs_completed(round_n):
             raise RuntimeError(f"Not all jobs for round {round_n} completed. Check the job folder: {self.chaining_log.jobs_folder}")
-        # TODO: delete outputs and pickles of completed jobs, ideally in an async manner
+
+        # async deletion of job pickles and outputs if everything ran smoothly
+        if array_jobid is not None:
+            threading.Thread(
+                target=self._cleanup_round_artifacts(round_n, self.scheduler, array_jobid),
+                args=(round_n, self.scheduler, array_jobid),
+                daemon=True
+            ).start()
+
         self.print_verbose("Starting docking for round {}".format(round_n))
         lib_array_indices, smi_list, absolute_ids = self.get_todock_list(round_n)
         self.used_beacons_fps[self.used_beacons_count:self.used_beacons_count+len(beacons)] = beacons
@@ -376,6 +387,7 @@ class CSAlgo:
         )
         job_id = job_array.submit()
         job_array.wait(job_id)
+        return job_id
 
     def run_sge_array(self, jobs, round_n):
         """Submit search jobs as an SGE array and wait for completion.
@@ -397,6 +409,7 @@ class CSAlgo:
         )
         job_id = job_array.submit()
         job_array.wait(job_id)
+        return job_id
 
     def dump_job_pickles(self, jobs, round_n):
         """Serialize per‑file :class:`SearchJob` objects to the jobs folder.
@@ -670,6 +683,34 @@ class CSAlgo:
             if not job.completed:
                 return False
         return True
+
+    def _cleanup_round_artifacts(self, round_n, scheduler, array_jobid):
+        """Best-effort deletion of per-round artifacts (pickles + scheduler logs)."""
+        if scheduler is None:
+            return
+        # first, small sleep to make sure everything is written
+        time.sleep(10)
+        jf = self.chaining_log.jobs_folder
+        try:
+            for j in range(self.fp_lib.n_files):
+                p = os.path.join(jf, f"{round_n}_{j}.pickle")
+                if os.path.isfile(p):
+                    os.remove(p)
+
+            if scheduler == "slurm":
+                patt = os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.out")
+                for p in glob.glob(patt):
+                    if os.path.isfile(p):
+                        os.remove(p)
+
+            elif scheduler == "sge":
+                patt = os.path.join(jf, f"sge_{round_n}_*.out")
+                for p in glob.glob(patt):
+                    if os.path.isfile(p):
+                        os.remove(p)
+        except Exception as e:
+            # Best effort: never crash the main run; print if verbose
+            self.print_verbose(f"[failed cleanup r{round_n}] {e}")
 
 
 def _run_one_job_local(job):

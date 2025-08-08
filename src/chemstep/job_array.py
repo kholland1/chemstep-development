@@ -31,7 +31,7 @@ class SlurmJobArray(JobArray):
     def submit(self):
         script_path = os.path.join(self.job_folder, f"run_array_round_{self.round_n}.sh")
         default_options = {
-            "job-name": f"chemstep_{self.round_n}",
+            "job-name": f"slurm_{self.round_n}",
             "output": f"{self.job_folder}/%x-%A_%a.out",
             "time": "12:00:00",
             "ntasks": "1",
@@ -105,7 +105,7 @@ class SGEJobArray(JobArray):
             "j": "y",  # merge stdout and stderr
             "t": array_range,
             "N": f"chemstep_{self.round_n}",
-            "o": f"{self.job_folder}/sge_$TASK_ID.out",
+            "o": f"{self.job_folder}/sge_{self.round_n}_$TASK_ID.out",
         }
 
         opts = {**default_options, **self.sge_options}
