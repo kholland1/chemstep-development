@@ -28,7 +28,7 @@ to your environment on wynton like this:
 
 .. code-block:: bash
 
-    pip install /wynton/group/bks/work/omailhot/chemstep-0.2.0.tar.gz
+    pip install /wynton/group/bks/work/omailhot/chemstep-0.2.1.tar.gz
 
 Dependencies
 ============
