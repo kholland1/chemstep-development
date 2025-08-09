@@ -5,6 +5,28 @@ import pickle
 
 
 def load_library_from_pickle(fn):
+    """Load a previously pickled :class:`FpLibrary` object from disk.
+
+    This is the recommended way to restore a saved fingerprint
+    library, for example when resuming a screening run.
+
+    Args:
+        fn (str): Path to the pickle file containing the saved
+            :class:`FpLibrary` instance.
+
+    Returns:
+        FpLibrary: The unpickled fingerprint library object.
+
+    Raises:
+        AssertionError: If the unpickled object is not an instance of
+            :class:`FpLibrary`.
+
+    Notes:
+        The pickle stores only file paths to the underlying library
+        data. For maximal interoperability, ensure that you either load it from
+        the same environment where it was created, or that the paths to the
+        files were absolute.
+    """
     with open(fn, 'rb') as f:
         obj = pickle.load(f)
         assert isinstance(obj, FpLibrary)
@@ -12,21 +34,47 @@ def load_library_from_pickle(fn):
 
 
 class FpLibrary:
-    """ Class representing a library of molecules to screen, in chemical similarity fingerprint representation.
+    """A library of molecules represented as precomputed fingerprints.
 
-        Attributes:
-            n_files (int): The number of fingerprint files in the FpLibrary
-            fp_files (list): The list of paths to the .npy fingerprint files
-            id_files (list): The list of paths to the .npy ID (usually ZINC) files. The IDs themselves are int64.
-            fp_prefix (str): The start of every fingerprint filename (rest must be identical between fp and id names)
-            id_prefix (str): Same as fp_prefix, for the id files
-            suffixes (list): The suffixes (exluding the .npy) of library files, in the same order as the one supplied
-            lengths (list): The lengths (number of entries) of each library file
-            fp_length_bytes (int): The number of bytes in each fingerprint (must be all the same for a given library)
+    Provides methods for validating the library structure and loading
+    fingerprints, IDs, and SMILES strings.
+
+    Attributes:
+        n_files (int): Number of fingerprint/ID/SMILES file triplets.
+        fp_files (list[str]): Paths to fingerprint (.npy) files.
+        id_files (list[str]): Paths to ID (.npy) files (dtype=int64).
+        smi_files (list[str]): Paths to SMILES (.smi or similar) files.
+        fp_prefix (str): Filename prefix for fingerprint files.
+        id_prefix (str): Filename prefix for ID files.
+        smi_prefix (str): Filename prefix for SMILES files.
+        suffixes (list[str]): Filename suffixes (excluding extension)
+            for each library chunk.
+        extensions (list[str]): File extensions for each library chunk.
+        lengths (np.ndarray[int64]): Number of molecules per file.
+        n_mols (int): Total number of molecules in the library.
+        fp_length_bytes (int): Number of bytes per fingerprint.
     """
 
     def __init__(self, fingerprint_files, id_files, smi_files, outname, fp_prefix="fps", id_prefix="zids",
                  smi_prefix="smi"):
+        """Initialize and validate an :class:`FpLibrary` instance.
+
+        Args:
+            fingerprint_files (list[str]): Paths to fingerprint files.
+            id_files (list[str]): Paths to ID files.
+            smi_files (list[str]): Paths to SMILES files.
+            outname (str): Output pickle filename (``.pickle`` appended
+                if missing).
+            fp_prefix (str, optional): Prefix for fingerprint files.
+            id_prefix (str, optional): Prefix for ID files.
+            smi_prefix (str, optional): Prefix for SMILES files.
+
+        Raises:
+            AssertionError: If file list lengths mismatch or
+                validation fails.
+            ValueError: If naming conventions or file contents are
+                inconsistent.
+        """
         assert len(fingerprint_files) == len(id_files)
         self.n_files = len(fingerprint_files)
         self.fp_files = fingerprint_files
@@ -47,6 +95,19 @@ class FpLibrary:
             pickle.dump(self, f)
 
     def _validate(self):
+        """Validate the library’s file naming and contents.
+
+        Checks:
+            * Filenames match expected prefixes and suffixes.
+            * Corresponding fingerprint, ID, and SMILES files share
+              the same suffix.
+            * Data shapes and dtypes are consistent across files.
+
+        Raises:
+            AssertionError: If prefixes, shapes, or dtypes are
+                inconsistent.
+            ValueError: If filenames do not match naming conventions.
+        """
         for i in range(self.n_files):
             fp_file = self.fp_files[i]
             id_file = self.id_files[i]
@@ -80,33 +141,85 @@ class FpLibrary:
                 assert fps_data.shape[1] == self.fp_length_bytes
             assert ids_data.dtype == np.int64
             assert fps_data.dtype == np.uint8
-            # if not str(smi_data.dtype).startswith('|S'):
-            #     raise ValueError("Problem with dtype of SMILES data in " +
-            #                      "{} (str representation should start with |S but is {} instead)".format(
-            #                          smi_file, smi_data.dtype))
         self.lengths = np.array(self.lengths, dtype=np.int64)
         self.n_mols = sum(self.lengths)
 
     def load_ids(self, lib_index):
+        """Load IDs for a specific library chunk.
+
+        Args:
+            lib_index (int): Index of the library file.
+
+        Returns:
+            np.ndarray[int64]: Array of molecule IDs.
+        Notes:
+            This should only be called when ample memory is available. For single-CPU jobs,
+            the _process_single_lib_chunked() method from :class:`CSAlgo` is used.
+        """
         return np.load(self.id_files[lib_index])
 
     def load_fps(self, lib_index):
+        """Load fingerprints for a specific library chunk.
+
+        Args:
+            lib_index (int): Index of the library file.
+
+        Returns:
+            np.ndarray[uint8]: Fingerprint array.
+        """
         return np.load(self.fp_files[lib_index])
 
     def load_smiles(self, lib_index):
+        """Load SMILES strings for a specific library chunk.
+
+        Args:
+            lib_index (int): Index of the library file.
+
+        Returns:
+            list[str]: List of SMILES strings.
+        """
         with open(self.smi_files[lib_index]) as f:
             lines = f.readlines()
-        return [line.strip() for line in lines]
+        return [line.strip()[0] for line in lines]
 
     def load_smiles_indices(self, lib_index, indices):
+        """Load SMILES strings for specific indices in a library chunk.
+
+        Args:
+            lib_index (int): Index of the library file.
+            indices (iterable[int]): Indices of SMILES to load.
+
+        Returns:
+            list[str]: List of SMILES strings.
+        """
         with open(self.smi_files[lib_index]) as f:
             lines = f.readlines()
         return [lines[i].strip()[0] for i in indices]
 
     def get_full_index(self, lib_index, array_index):
+        """Convert a (library index, array index) pair to a full index.
+
+        Args:
+            lib_index (int): Library file index.
+            array_index (int): Index within the library file.
+
+        Returns:
+            int: Full library index (0-based across all files).
+        """
         return _full_index_helper(lib_index, array_index, self.lengths)
 
     def get_lib_array_indices(self, full_index):
+        """Convert a full index to (library index, array index).
+
+        Args:
+            full_index (int): Full library index.
+
+        Returns:
+            tuple[int, int]: (library index, array index) pair.
+
+        Raises:
+            ValueError: If ``full_index`` is out of range.
+        """
         assert full_index >= 0
         if full_index >= self.n_mols:
             raise ValueError("get_lib_array_indices() called with full_index={} (only {} mols in library)".format(

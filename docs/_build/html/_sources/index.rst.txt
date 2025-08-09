@@ -14,8 +14,6 @@ If you use ChemSTEP, please cite: PLACEHOLDER
    :caption: Getting Started
 
    installation
-   quickstart
-   reference
 
 .. toctree::
    :maxdepth: 2
@@ -29,3 +27,4 @@ If you use ChemSTEP, please cite: PLACEHOLDER
 
    fingerprint_library
    configuration
+   reference

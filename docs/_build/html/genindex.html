@@ -44,8 +44,6 @@
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -53,8 +51,9 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating a Fingerprint Mesh</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating your own FpLibrary</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 
         </div>
@@ -88,9 +87,12 @@
  | <a href="#B"><strong>B</strong></a>
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
  | <a href="#F"><strong>F</strong></a>
  | <a href="#G"><strong>G</strong></a>
  | <a href="#H"><strong>H</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#J"><strong>J</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
@@ -106,10 +108,14 @@
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference.html#chemstep.algo.CSAlgo.all_jobs_completed">all_jobs_completed() (chemstep.algo.CSAlgo method)</a>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.add_exclusions">add_exclusions() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.add_mintds">add_mintds() (chemstep.chaining_log.ChainingLog method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.algo.CSAlgo.all_jobs_completed">all_jobs_completed() (chemstep.algo.CSAlgo method)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.apply_beacons_diversity">apply_beacons_diversity() (chemstep.algo.CSAlgo method)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.apply_beacons_diversity_maxdiv">apply_beacons_diversity_maxdiv() (chemstep.algo.CSAlgo method)</a>
@@ -130,12 +136,14 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.algo.CSAlgo.chaining_log">chaining_log (chemstep.algo.CSAlgo attribute)</a>
 </li>
-      <li><a href="reference.html#chemstep.algo.CSAlgo">CSAlgo (class in chemstep.algo)</a>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog">ChainingLog (class in chemstep.chaining_log)</a>
 </li>
-      <li><a href="reference.html#chemstep.parameters.CSParams">CSParams (class in chemstep.parameters)</a>
+      <li><a href="reference.html#chemstep.algo.CSAlgo">CSAlgo (class in chemstep.algo)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.parameters.CSParams">CSParams (class in chemstep.parameters)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.current_beacons">current_beacons (chemstep.algo.CSAlgo attribute)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.current_beacons_dists">current_beacons_dists (chemstep.algo.CSAlgo attribute)</a>
@@ -153,10 +161,34 @@
   </ul></td>
 </tr></table>
 
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.exclusion_prefix">exclusion_prefix (chemstep.chaining_log.ChainingLog attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.extensions">extensions (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.fp_files">fp_files (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.fp_length_bytes">fp_length_bytes (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.fp_lib">fp_lib (chemstep.algo.CSAlgo attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.fp_library">fp_library (chemstep.chaining_log.ChainingLog attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.fp_prefix">fp_prefix (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary">FpLibrary (class in chemstep.fp_library)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -166,8 +198,18 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.algo.CSAlgo.get_beacons">get_beacons() (chemstep.algo.CSAlgo method)</a>
 </li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.get_filename">get_filename() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.get_full_index">get_full_index() (chemstep.fp_library.FpLibrary method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.get_lib_array_indices">get_lib_array_indices() (chemstep.fp_library.FpLibrary method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.get_mintd_distrib">get_mintd_distrib() (in module chemstep.chaining_log)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.get_suffix">get_suffix() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.get_todock_list">get_todock_list() (chemstep.algo.CSAlgo method)</a>
 </li>
   </ul></td>
@@ -181,14 +223,56 @@
   </ul></td>
 </tr></table>
 
-<h2 id="L">L</h2>
+<h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference.html#chemstep.algo.CSAlgo.linking_loop">linking_loop() (chemstep.algo.CSAlgo method)</a>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.id_files">id_files (chemstep.fp_library.FpLibrary attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.id_prefix">id_prefix (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="J">J</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.jobs_folder">jobs_folder (chemstep.chaining_log.ChainingLog attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.lengths">lengths (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.algo.CSAlgo.linking_loop">linking_loop() (chemstep.algo.CSAlgo method)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.load_all_fps_unused_beacons">load_all_fps_unused_beacons() (chemstep.algo.CSAlgo method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.load_exclusions">load_exclusions() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.load_fps">load_fps() (chemstep.fp_library.FpLibrary method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.load_global_mintd_distrib">load_global_mintd_distrib() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.load_ids">load_ids() (chemstep.fp_library.FpLibrary method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.load_library_from_pickle">load_library_from_pickle() (in module chemstep.fp_library)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.load_mintd_distrib">load_mintd_distrib() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.load_mintds">load_mintds() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.load_smiles">load_smiles() (chemstep.fp_library.FpLibrary method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.load_smiles_indices">load_smiles_indices() (chemstep.fp_library.FpLibrary method)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.log_folder">log_folder (chemstep.chaining_log.ChainingLog attribute)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.lookup_dock">lookup_dock() (chemstep.algo.CSAlgo method)</a>
 </li>
@@ -200,9 +284,13 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.parameters.CSParams.max_beacons">max_beacons (chemstep.parameters.CSParams attribute)</a>
 </li>
+      <li><a href="reference.html#chemstep.parameters.CSParams.max_n_rounds">max_n_rounds (chemstep.parameters.CSParams attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference.html#chemstep.parameters.CSParams.max_n_rounds">max_n_rounds (chemstep.parameters.CSParams attribute)</a>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.mintd_distrib_prefix">mintd_distrib_prefix (chemstep.chaining_log.ChainingLog attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.mintd_prefix">mintd_prefix (chemstep.chaining_log.ChainingLog attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -211,6 +299,12 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.parameters.CSParams.n_docked_per_round">n_docked_per_round (chemstep.parameters.CSParams attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.n_files">n_files (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.n_mols">n_mols (chemstep.fp_library.FpLibrary attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -238,12 +332,14 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="reference.html#chemstep.algo.CSAlgo.run_local">run_local() (chemstep.algo.CSAlgo method)</a>
+      <li><a href="reference.html#chemstep.parameters.read_param_file">read_param_file() (in module chemstep.parameters)</a>
 </li>
-      <li><a href="reference.html#chemstep.algo.CSAlgo.run_one_round">run_one_round() (chemstep.algo.CSAlgo method)</a>
+      <li><a href="reference.html#chemstep.algo.CSAlgo.run_local">run_local() (chemstep.algo.CSAlgo method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.algo.CSAlgo.run_one_round">run_one_round() (chemstep.algo.CSAlgo method)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.run_sge_array">run_sge_array() (chemstep.algo.CSAlgo method)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.run_slurm_array">run_slurm_array() (chemstep.algo.CSAlgo method)</a>
@@ -254,19 +350,27 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.chaining_log.save_flush_np">save_flush_np() (in module chemstep.chaining_log)</a>
+</li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.score_thresh">score_thresh (chemstep.algo.CSAlgo attribute)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.screen_novelty">screen_novelty() (chemstep.algo.CSAlgo method)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.seed">seed() (chemstep.algo.CSAlgo method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.parameters.CSParams.seed_indices_file">seed_indices_file (chemstep.parameters.CSParams attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.parameters.CSParams.seed_scores_file">seed_scores_file (chemstep.parameters.CSParams attribute)</a>
 </li>
       <li><a href="reference.html#chemstep.algo.CSAlgo.set_score_thresh">set_score_thresh() (chemstep.algo.CSAlgo method)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.smi_files">smi_files (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.smi_prefix">smi_prefix (chemstep.fp_library.FpLibrary attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.fp_library.FpLibrary.suffixes">suffixes (chemstep.fp_library.FpLibrary attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -275,6 +379,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.algo.CSAlgo.unused_beacons">unused_beacons (chemstep.algo.CSAlgo attribute)</a>
+</li>
+      <li><a href="reference.html#chemstep.chaining_log.update_mintds">update_mintds() (in module chemstep.chaining_log)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -295,6 +401,10 @@
 
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="reference.html#chemstep.chaining_log.ChainingLog.write_empty_files">write_empty_files() (chemstep.chaining_log.ChainingLog method)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="reference.html#chemstep.algo.CSAlgo.write_smi_file">write_smi_file() (chemstep.algo.CSAlgo method)</a>
 </li>

@@ -58,5 +58,5 @@ Typical output::
 
 Read next:
 
-* :doc:`quickstart` –run your first ChemSTEP search.
-* :doc:`configuration` –advanced configuration options.
+* :doc:`manual_docking` –run your first ChemSTEP search.
+* :doc:`fingerprint_library` –create your own FpLibrary.

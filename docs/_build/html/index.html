@@ -46,8 +46,6 @@
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -55,8 +53,9 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating a Fingerprint Mesh</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating your own FpLibrary</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 
         </div>
@@ -95,13 +94,6 @@ molecular docking capable of dealing with virtual libraries of several trillion 
 <li class="toctree-l2"><a class="reference internal" href="installation.html#dependencies">Dependencies</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.version"><code class="docutils literal notranslate"><span class="pre">version()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.algo.CSAlgo"><code class="docutils literal notranslate"><span class="pre">CSAlgo</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.parameters.CSParams"><code class="docutils literal notranslate"><span class="pre">CSParams</span></code></a></li>
-</ul>
-</li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
@@ -118,14 +110,32 @@ molecular docking capable of dealing with virtual libraries of several trillion 
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating a Fingerprint Mesh</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating your own FpLibrary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#prerequisites">Prerequisites</a></li>
-<li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#workflow-overview">Workflow overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#workflow">Workflow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#key-checks-performed">Key checks performed</a></li>
-<li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#loading-data-on-demand">Loading data on demand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fingerprint_library.html#on-demand-loading">On-demand loading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#parameter-file-format">Parameter file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#parameter-descriptions">Parameter descriptions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.version"><code class="docutils literal notranslate"><span class="pre">version()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.algo.CSAlgo"><code class="docutils literal notranslate"><span class="pre">CSAlgo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.parameters.read_param_file"><code class="docutils literal notranslate"><span class="pre">read_param_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.parameters.CSParams"><code class="docutils literal notranslate"><span class="pre">CSParams</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.fp_library.load_library_from_pickle"><code class="docutils literal notranslate"><span class="pre">load_library_from_pickle()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary"><code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.chaining_log.ChainingLog"><code class="docutils literal notranslate"><span class="pre">ChainingLog</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.chaining_log.save_flush_np"><code class="docutils literal notranslate"><span class="pre">save_flush_np()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.chaining_log.update_mintds"><code class="docutils literal notranslate"><span class="pre">update_mintds()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference.html#chemstep.chaining_log.get_mintd_distrib"><code class="docutils literal notranslate"><span class="pre">get_mintd_distrib()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </div>
 </section>

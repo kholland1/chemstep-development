@@ -1,64 +1,104 @@
 ===========================
-Creating a Fingerprint Mesh
+Creating your own FpLibrary
 ===========================
 
-This tutorial shows how to build a **FpLibrary** object from raw
-SMILES files and pre-computed Morgan fingerprints.
+This guide shows how to build an :class:`~chemstep.fp_library.FpLibrary` object
+from raw SMILES files using the built-in :func:`~chemstep.fingerprints.compute_morgan_fps`
+function in ChemSTEP.
+
+Overview
+--------
+
+An :class:`~chemstep.fp_library.FpLibrary` represents a large, chunked collection
+of molecules in both SMILES and binary fingerprint form, with matching integer IDs.
+You should generate the fingerprints using ChemSTEP’s high-performance
+:func:`~chemstep.fingerprints.compute_morgan_fps` helper, which wraps RDKit and
+returns contiguous ``uint8`` NumPy arrays.
+For this, you will need to have RDKit installed (see https://www.rdkit.org/docs/Install.html ).
+
+We recommend **not compressing** either the SMILES files or the fingerprint
+files:
+
+* Uncompressed SMILES (``.smi``) files are much faster (10-20x) to read.
+* Fingerprint files (128 bytes per compound for 1024-bit fingerprints) take up more space
+  than the SMILES anyway, and compression would slow down I/O significantly in large-scale runs.
 
 Prerequisites
 -------------
 
-* SMILES list split into chunks (one per future array job)
-* Corresponding ZINC (or other) integer IDs
-* Binary fingerprints stored as contiguous **uint8** NumPy arrays
-  (shape: *n_molecules × fp_len_bytes*)
+* One SMILES file per library chunk (these can be the input to
+  :func:`~chemstep.fingerprints.compute_morgan_fps`).
+* Corresponding 64bit-integer IDs (e.g., ZINC IDs) in ``.npy`` files.
 
-Workflow overview
------------------
+Workflow
+--------
 
-1. **Generate fingerprints** (RDKit)
+1. **Generate fingerprints from SMILES**
+
+   Using ChemSTEP’s built-in helper:
 
    .. code-block:: python
 
-      from rdkit import Chem
-      from rdkit.Chem import AllChem
+      from chemstep.fingerprints import compute_morgan_fps
       import numpy as np
 
-      def morgan_fp(smiles, nbits=2048, radius=2):
-          mol = Chem.MolFromSmiles(smiles)
-          fp  = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=nbits)
-          return np.asarray(fp, dtype=np.uint8)
+      def write_one_fp_file(smi_file, fp_filename):
+          fingerprints = compute_morgan_fps(smi_file)
+          np.save(fp_filename, fingerprints)
 
-2. **Save data**
-   Save *fpsXXXX.npy*, *zidsXXXX.npy*, and *smiXXXX.smi* where
-   **XXXX** is a numeric/alpha suffix shared by the trio.
 
-3. **Instantiate** ``FpLibrary``
+   This produces one ``.npy`` fingerprint file per input ``.smi`` file.
+
+   The speed is approximately 1000 fingerprints / second on a modern CPU,
+   so you will need to parallelize this step for large libraries.
+
+
+2. **Prepare ID files**
+   You should prepare corresponding
+   ``.npy`` files containing a 64-bit integer ID for every compound.
+   The IDs should be in the same order as the
+   SMILES and fingerprints, and should be 64-bit integers (``np.int64``).
+   Save matching ``.npy`` files with ``np.int64`` IDs
+   (same order as the SMILES/fingerprints). These will be split in chunks the
+   same way as the smiles and fingerprints.
+
+3. **Instantiate an FpLibrary**
+   Here is an example of how to instantiate an :class:`~chemstep.fp_library.FpLibrary`.
 
    .. code-block:: python
 
+      from glob import glob
+      from chemstep.fp_library import FpLibrary
+
       lib = FpLibrary(
-          fingerprint_files = sorted(glob('fps*.npy')),
-          id_files          = sorted(glob('zids*.npy')),
-          smi_files         = sorted(glob('smi*.smi')),
-          outname           = 'zinc.fp_lib.pickle'
+          fingerprint_files = sorted(glob('absolute/path/to/your/fps*.npy')),
+          id_files          = sorted(glob('absolute/path/to/your/zids*.npy')),
+          smi_files         = sorted(glob('absolute/path/to/your/smi*.smi')),
+          outname           = 'zinc_fplib.pickle'
       )
+
+   The .pickle library file can then be copied anywhere and loaded in lieue of
+   rebuilding the library with:
+
+    .. code-block:: python
+
+        from chemstep.fp_library import FpLibrary
+
+        lib = FpLibrary.load('zinc_fplib.pickle')
 
 Key checks performed
 --------------------
 
-* All three filename prefixes match **exactly**.
-* Each trio has identical length; *fp_len_bytes* is constant.
-* ``dtype`` validation (``np.uint8`` for fps, ``np.int64`` for IDs).
+The :class:`~chemstep.fp_library.FpLibrary` constructor will ensure:
 
-Loading data on demand
-----------------------
+* All filename prefixes match exactly across SMILES, ID, and fingerprint files.
+* Each file trio has identical length, with a constant fingerprint length
+  (``fp_len_bytes``) across the library.
+* Correct ``dtype``: ``np.uint8`` for fingerprints, ``np.int64`` for IDs.
 
-``FpLibrary`` keeps only filenames in memory.  Fingerprints/IDs are
-memory-mapped when needed, enabling petabyte-scale libraries.
+On-demand loading
+-----------------
 
-.. automethod:: chemstep.fp_library.FpLibrary.load_fps
-   :noindex:
-
-.. automethod:: chemstep.fp_library.FpLibrary.get_full_index
-   :noindex:
+An :class:`~chemstep.fp_library.FpLibrary` stores only the file paths in memory.
+Data is loaded from disk only when requested, keeping memory use minimal.
+See the :class:`~chemstep.fp_library.FpLibrary` documentation for details.

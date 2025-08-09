@@ -18,6 +18,41 @@ import threading, glob, time
 
 
 def load_from_pickle(fn):
+    """
+    Load a previously pickled :class:`CSAlgo` object from disk.
+
+    This is the recommended way to resume an interrupted or completed
+    ChemSTEP run. The returned object will contain all current state
+    (parameters, chaining log, beacon history, etc.) exactly as when
+    it was pickled.
+
+    Parameters
+    ----------
+    fn : str
+        Path to the pickle file containing the saved :class:`CSAlgo`
+        instance.
+
+    Returns
+    -------
+    CSAlgo
+        The unpickled :class:`CSAlgo` object, ready to continue
+        processing.
+
+    Raises
+    ------
+    AssertionError
+        If the unpickled object is not an instance of :class:`CSAlgo`.
+
+    Notes
+    -----
+    * The pickle contains file paths (e.g., to NumPy `.npy` data) and
+      other run-specific directories. These may be relative paths.
+    * To avoid missing-file errors, load the pickle in the **same
+      environment** (directory structure, Python version, and installed
+      libraries) as the one in which it was created.
+    * If paths were relative when pickled, you should restore them
+      from the same working directory.
+    """
     with open(fn, 'rb') as f:
         obj = pickle.load(f)
         assert isinstance(obj, CSAlgo)

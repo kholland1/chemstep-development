@@ -5,12 +5,39 @@ import os
 
 
 class ChainingLog:
-    """ Class that does all the necessary bookkeeping for an instance of ChemSTEP as it runs through several rounds.
+    """Bookkeeping for a ChemSTEP run across multiple rounds.
+
+    Handles persistent storage of exclusion masks, minimum Tanimoto
+    distance (minTD) arrays, and minTD distributions for each library
+    chunk. Also manages job and log directories.
+
+    Attributes:
+        fp_library (FpLibrary): The fingerprint library being screened.
+        log_folder (str): Path to the log directory.
+        exclusion_prefix (str): Filename prefix for exclusion files.
+        mintd_prefix (str): Filename prefix for minTD files.
+        mintd_distrib_prefix (str): Filename prefix for minTD
+            distribution files.
+        jobs_folder (str): Path to the jobs directory.
     """
 
     def __init__(self, fp_library, log_folder, exclusion_prefix="excl", mintd_prefix="mintds",
                  mintd_distrib_prefix="mintddistrib", write_empty_files=True,
                  jobs_folder=None):
+        """Initialize a :class:`ChainingLog` instance.
+
+        Args:
+            fp_library (FpLibrary): Fingerprint library instance.
+            log_folder (str): Path to the log directory.
+            exclusion_prefix (str, optional): Prefix for exclusion files.
+            mintd_prefix (str, optional): Prefix for minTD files.
+            mintd_distrib_prefix (str, optional): Prefix for minTD
+                distribution files.
+            write_empty_files (bool, optional): If True, create empty
+                log files on initialization.
+            jobs_folder (str, optional): Path to the jobs folder. If
+                None, defaults to ``<log_folder>/jobs``.
+        """
         assert isinstance(fp_library, FpLibrary)
         self.fp_library = fp_library
         assert isinstance(log_folder, str)
@@ -28,6 +55,14 @@ class ChainingLog:
             self.write_empty_files()
 
     def write_empty_files(self):
+        """Create empty exclusion, minTD, and minTD distribution files.
+
+        Initializes all log files for each library chunk with the
+        correct shape, dtype, and starting values:
+        * Exclusions: zeros (uint8)
+        * minTD: all set to 2.0 (float32)
+        * minTD distributions: zeros (int64)
+        """
         if not os.path.isdir(self.log_folder):
             os.mkdir(self.log_folder)
         if not os.path.isdir(self.jobs_folder):
@@ -48,12 +83,31 @@ class ChainingLog:
                 np.save(self.get_filename(prefix, suffix), data)
 
     def load_exclusions(self, index):
+        """Load the exclusion array for a library chunk.
+
+        Args:
+            index (int): Library chunk index.
+
+        Returns:
+            np.ndarray[uint8]: Boolean mask of excluded molecules.
+        """
         self._check_index(index)
         filename = self.get_filename(self.exclusion_prefix, self.get_suffix(index))
         data = np.load(filename)
         return data
 
     def add_exclusions(self, exclusions, index):
+        """Add exclusions for a library chunk.
+
+        Args:
+            exclusions (np.ndarray[bool]): Boolean array of new
+                exclusions to add.
+            index (int): Library chunk index.
+
+        Raises:
+            AssertionError: If the shape of ``exclusions`` does not
+                match the stored exclusion array.
+        """
         self._check_index(index)
         previous_exclusions = self.load_exclusions(index)
         assert previous_exclusions.shape == exclusions.shape
@@ -62,11 +116,24 @@ class ChainingLog:
         np.save(filename, exclusions)
 
     def load_mintd_distrib(self, index):
+        """Load the minTD distribution for a library chunk.
+
+        Args:
+            index (int): Library chunk index.
+
+        Returns:
+            np.ndarray[int64]: Histogram array of length 1001.
+        """
         self._check_index(index)
         filename = self.get_filename(self.mintd_distrib_prefix, self.get_suffix(index))
         return np.load(filename)
 
     def load_global_mintd_distrib(self):
+        """Load and sum minTD distributions across all library chunks.
+
+        Returns:
+            np.ndarray[int64]: Global histogram array of length 1001.
+        """
         global_distrib = self.load_mintd_distrib(0)
         for index in range(1, self.fp_library.n_files):
             mintd_distrib = self.load_mintd_distrib(index)
@@ -74,12 +141,28 @@ class ChainingLog:
         return global_distrib
 
     def load_mintds(self, index):
+        """Load the minTD array for a library chunk.
+
+        Args:
+            index (int): Library chunk index.
+
+        Returns:
+            np.ndarray[float32]: minTD values.
+        """
         self._check_index(index)
         filename = self.get_filename(self.mintd_prefix, self.get_suffix(index))
         data = np.load(filename)
         return data
 
     def add_mintds(self, mintds, index, update_distrib=True):
+        """Update the minTD array for a library chunk.
+
+        Args:
+            mintds (np.ndarray[float32]): New minTD values to merge.
+            index (int): Library chunk index.
+            update_distrib (bool, optional): If True, also recompute
+                and save the minTD distribution.
+        """
         self._check_index(index)
         filename = self.get_filename(self.mintd_prefix, self.get_suffix(index))
         data = np.load(filename)
@@ -92,17 +175,50 @@ class ChainingLog:
             np.save(filename, distrib)
 
     def _check_index(self, index):
+        """Validate that a library chunk index is within bounds.
+
+        Args:
+            index (int): Library chunk index.
+
+        Raises:
+            AssertionError: If index is negative or >= number of files.
+        """
         assert index >= 0
         assert index < self.fp_library.n_files
 
     def get_suffix(self, index):
+        """Get the filename suffix for a library chunk.
+
+        Args:
+            index (int): Library chunk index.
+
+        Returns:
+            str: Filename suffix.
+        """
         return self.fp_library.suffixes[index]
 
     def get_filename(self, prefix, suffix, ext=".npy"):
+        """Build a full path for a log file.
+
+        Args:
+            prefix (str): Filename prefix.
+            suffix (str): Filename suffix.
+            ext (str, optional): File extension. Defaults to ``.npy``.
+
+        Returns:
+            str: Full file path.
+        """
         return "{}/{}{}{}".format(self.log_folder, prefix, suffix, ext)
 
 
 def save_flush_np(data, filename):
+    """Save a NumPy array to disk and flush buffers.
+
+    Args:
+        data (np.ndarray): Array to save.
+        filename (str): Destination filename (``.npy`` appended if
+            missing).
+    """
     if not filename.endswith('.npy'):
         filename += ".npy"
     with open(filename, 'wb') as f:
@@ -113,6 +229,20 @@ def save_flush_np(data, filename):
 
 @njit
 def update_mintds(data, mintds, exclusions):
+    """Merge new minTD values into an existing minTD array.
+
+    For each element:
+        * If excluded, set to 2.0.
+        * Else, set to the minimum of existing and new minTD.
+
+    Args:
+        data (np.ndarray[float32]): Existing minTD values.
+        mintds (np.ndarray[float32]): New minTD values.
+        exclusions (np.ndarray[bool]): Exclusion mask.
+
+    Returns:
+        np.ndarray[float32]: Updated minTD values.
+    """
     assert data.shape[0] == mintds.shape[0] == exclusions.shape[0]
     for i in range(data.shape[0]):
         if exclusions[i]:
@@ -126,6 +256,18 @@ def update_mintds(data, mintds, exclusions):
 
 @njit
 def get_mintd_distrib(mintds):
+    """Compute a histogram of minTD values.
+
+    Values > 1 are ignored because they mean the molecule has been docked before.
+    Remaining values are binned into 1001
+    bins from 0.000 to 1.000 (inclusive).
+
+    Args:
+        mintds (np.ndarray[float32]): minTD values.
+
+    Returns:
+        np.ndarray[int64]: Histogram array of length 1001.
+    """
     distrib = np.zeros(1001, dtype=np.int64)
     for mintd in mintds:
         if mintd > 1:

@@ -21,8 +21,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Running ChemSTEP in “manual” mode" href="manual_docking.html" />
-    <link rel="prev" title="Quickstart" href="quickstart.html" /> 
+    <link rel="prev" title="ChemSTEP parameters/configuration" href="configuration.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -45,9 +44,17 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “manual” mode</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating your own FpLibrary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#chemstep.version"><code class="docutils literal notranslate"><span class="pre">version()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#chemstep.algo.CSAlgo"><code class="docutils literal notranslate"><span class="pre">CSAlgo</span></code></a><ul>
@@ -83,6 +90,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.algo.CSAlgo.write_smi_file"><code class="docutils literal notranslate"><span class="pre">CSAlgo.write_smi_file()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.parameters.read_param_file"><code class="docutils literal notranslate"><span class="pre">read_param_file()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#chemstep.parameters.CSParams"><code class="docutils literal notranslate"><span class="pre">CSParams</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.parameters.CSParams.seed_indices_file"><code class="docutils literal notranslate"><span class="pre">CSParams.seed_indices_file</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.parameters.CSParams.seed_scores_file"><code class="docutils literal notranslate"><span class="pre">CSParams.seed_scores_file</span></code></a></li>
@@ -92,17 +100,51 @@
 <li class="toctree-l3"><a class="reference internal" href="#chemstep.parameters.CSParams.max_n_rounds"><code class="docutils literal notranslate"><span class="pre">CSParams.max_n_rounds</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.fp_library.load_library_from_pickle"><code class="docutils literal notranslate"><span class="pre">load_library_from_pickle()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.fp_library.FpLibrary"><code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.n_files"><code class="docutils literal notranslate"><span class="pre">FpLibrary.n_files</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.fp_files"><code class="docutils literal notranslate"><span class="pre">FpLibrary.fp_files</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.id_files"><code class="docutils literal notranslate"><span class="pre">FpLibrary.id_files</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.smi_files"><code class="docutils literal notranslate"><span class="pre">FpLibrary.smi_files</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.fp_prefix"><code class="docutils literal notranslate"><span class="pre">FpLibrary.fp_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.id_prefix"><code class="docutils literal notranslate"><span class="pre">FpLibrary.id_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.smi_prefix"><code class="docutils literal notranslate"><span class="pre">FpLibrary.smi_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.suffixes"><code class="docutils literal notranslate"><span class="pre">FpLibrary.suffixes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.extensions"><code class="docutils literal notranslate"><span class="pre">FpLibrary.extensions</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.lengths"><code class="docutils literal notranslate"><span class="pre">FpLibrary.lengths</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.n_mols"><code class="docutils literal notranslate"><span class="pre">FpLibrary.n_mols</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.fp_length_bytes"><code class="docutils literal notranslate"><span class="pre">FpLibrary.fp_length_bytes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.get_full_index"><code class="docutils literal notranslate"><span class="pre">FpLibrary.get_full_index()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.get_lib_array_indices"><code class="docutils literal notranslate"><span class="pre">FpLibrary.get_lib_array_indices()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.load_fps"><code class="docutils literal notranslate"><span class="pre">FpLibrary.load_fps()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.load_ids"><code class="docutils literal notranslate"><span class="pre">FpLibrary.load_ids()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.load_smiles"><code class="docutils literal notranslate"><span class="pre">FpLibrary.load_smiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.fp_library.FpLibrary.load_smiles_indices"><code class="docutils literal notranslate"><span class="pre">FpLibrary.load_smiles_indices()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog"><code class="docutils literal notranslate"><span class="pre">ChainingLog</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.fp_library"><code class="docutils literal notranslate"><span class="pre">ChainingLog.fp_library</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.log_folder"><code class="docutils literal notranslate"><span class="pre">ChainingLog.log_folder</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.exclusion_prefix"><code class="docutils literal notranslate"><span class="pre">ChainingLog.exclusion_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.mintd_prefix"><code class="docutils literal notranslate"><span class="pre">ChainingLog.mintd_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.mintd_distrib_prefix"><code class="docutils literal notranslate"><span class="pre">ChainingLog.mintd_distrib_prefix</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.jobs_folder"><code class="docutils literal notranslate"><span class="pre">ChainingLog.jobs_folder</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.add_exclusions"><code class="docutils literal notranslate"><span class="pre">ChainingLog.add_exclusions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.add_mintds"><code class="docutils literal notranslate"><span class="pre">ChainingLog.add_mintds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.get_filename"><code class="docutils literal notranslate"><span class="pre">ChainingLog.get_filename()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.get_suffix"><code class="docutils literal notranslate"><span class="pre">ChainingLog.get_suffix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.load_exclusions"><code class="docutils literal notranslate"><span class="pre">ChainingLog.load_exclusions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.load_global_mintd_distrib"><code class="docutils literal notranslate"><span class="pre">ChainingLog.load_global_mintd_distrib()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.load_mintd_distrib"><code class="docutils literal notranslate"><span class="pre">ChainingLog.load_mintd_distrib()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.load_mintds"><code class="docutils literal notranslate"><span class="pre">ChainingLog.load_mintds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chemstep.chaining_log.ChainingLog.write_empty_files"><code class="docutils literal notranslate"><span class="pre">ChainingLog.write_empty_files()</span></code></a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="manual_docking.html">Running ChemSTEP in “manual” mode</a></li>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.chaining_log.save_flush_np"><code class="docutils literal notranslate"><span class="pre">save_flush_np()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.chaining_log.update_mintds"><code class="docutils literal notranslate"><span class="pre">update_mintds()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chemstep.chaining_log.get_mintd_distrib"><code class="docutils literal notranslate"><span class="pre">get_mintd_distrib()</span></code></a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating a Fingerprint Mesh</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+</li>
 </ul>
 
         </div>
@@ -131,8 +173,8 @@
              
   <section id="api-reference">
 <h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading"></a></h1>
-<p>ChemSTEP’s main user-facing classes live in <code class="xref py py-mod docutils literal notranslate"><span class="pre">chemstep.algo</span></code>
-and <code class="xref py py-mod docutils literal notranslate"><span class="pre">chemstep.parameters</span></code>.</p>
+<p>ChemSTEP’s main user-facing classes live in <code class="xref py py-mod docutils literal notranslate"><span class="pre">chemstep.algo</span></code>,
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">chemstep.parameters</span></code> and <code class="xref py py-mod docutils literal notranslate"><span class="pre">chemstep.fp_library</span></code>.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="chemstep.version">
 <span class="sig-prename descclassname"><span class="pre">chemstep.</span></span><span class="sig-name descname"><span class="pre">version</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#chemstep.version" title="Link to this definition"></a></dt>
@@ -153,9 +195,9 @@ the next round of search.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>fp_lib</strong> (<em>FpLibrary</em>) – Precomputed fingerprint/ID/SMILES library to traverse.</p></li>
+<li><p><strong>fp_lib</strong> (<a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><em>FpLibrary</em></a>) – Precomputed fingerprint/ID/SMILES library to traverse.</p></li>
 <li><p><strong>chemstep_params</strong> (<a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><em>CSParams</em></a><em> | </em><em>str</em>) – Either a <a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">CSParams</span></code></a> instance or a path to
-a parameter file parseable via <code class="xref py py-func docutils literal notranslate"><span class="pre">read_param_file()</span></code>.</p></li>
+a parameter file parseable via <a class="reference internal" href="#chemstep.parameters.read_param_file" title="chemstep.parameters.read_param_file"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_param_file()</span></code></a>.</p></li>
 <li><p><strong>output_directory</strong> (<em>str</em>) – Directory where ChemSTEP writes logs, intermediate arrays, and jobs.</p></li>
 <li><p><strong>n_proc</strong> (<em>int</em>) – Number of local worker processes when running without a scheduler.</p></li>
 <li><p><strong>use_pickle</strong> (<em>bool</em><em>, </em><em>default=True</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, write a pickle of <code class="docutils literal notranslate"><span class="pre">self</span></code> at the end of each round.</p></li>
@@ -198,7 +240,7 @@ to a <code class="docutils literal notranslate"><span class="pre">float32</span>
 <dd><p>The working library.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>FpLibrary</p>
+<dd class="field-odd"><p><a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary">FpLibrary</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -220,7 +262,7 @@ to a <code class="docutils literal notranslate"><span class="pre">float32</span>
 <dd><p>Manager for exclusions, minTD arrays, and histograms.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>ChainingLog</p>
+<dd class="field-odd"><p><a class="reference internal" href="#chemstep.chaining_log.ChainingLog" title="chemstep.chaining_log.ChainingLog">ChainingLog</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -324,7 +366,7 @@ to dock so it cannot be re‑selected in later rounds.</p></li>
 </ul>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.parameters.CSParams</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.fp_library.FpLibrary</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.chaining_log.ChainingLog</span></code></p>
+<p><a class="reference internal" href="#chemstep.parameters.CSParams" title="chemstep.parameters.CSParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.parameters.CSParams</span></code></a>, <a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.fp_library.FpLibrary</span></code></a>, <a class="reference internal" href="#chemstep.chaining_log.ChainingLog" title="chemstep.chaining_log.ChainingLog"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chemstep.chaining_log.ChainingLog</span></code></a></p>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="chemstep.algo.CSAlgo.all_jobs_completed">
@@ -642,6 +684,11 @@ their corresponding library shards.</p>
 
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py" id="chemstep.parameters.read_param_file">
+<span class="sig-prename descclassname"><span class="pre">chemstep.parameters.</span></span><span class="sig-name descname"><span class="pre">read_param_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.parameters.read_param_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py class">
 <dt class="sig sig-object py" id="chemstep.parameters.CSParams">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">chemstep.parameters.</span></span><span class="sig-name descname"><span class="pre">CSParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed_indices_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed_scores_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hit_pprop</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_docked_per_round</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_beacons</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_n_rounds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.parameters.CSParams" title="Link to this definition"></a></dt>
@@ -717,14 +764,587 @@ seed_indices_file, as a float32 array in .npy format</p>
 
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py" id="chemstep.fp_library.load_library_from_pickle">
+<span class="sig-prename descclassname"><span class="pre">chemstep.fp_library.</span></span><span class="sig-name descname"><span class="pre">load_library_from_pickle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.load_library_from_pickle" title="Link to this definition"></a></dt>
+<dd><p>Load a previously pickled <a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> object from disk.</p>
+<p>This is the recommended way to restore a saved fingerprint
+library, for example when resuming a screening run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fn</strong> (<em>str</em>) – Path to the pickle file containing the saved
+<a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> instance.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The unpickled fingerprint library object.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary">FpLibrary</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>AssertionError</strong> – If the unpickled object is not an instance of
+    <a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a>.</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The pickle stores only file paths to the underlying library
+data. For maximal interoperability, ensure that you either load it from
+the same environment where it was created, or that the paths to the
+files were absolute.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">chemstep.fp_library.</span></span><span class="sig-name descname"><span class="pre">FpLibrary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fingerprint_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smi_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fps'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zids'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smi_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'smi'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A library of molecules represented as precomputed fingerprints.</p>
+<p>Provides methods for validating the library structure and loading
+fingerprints, IDs, and SMILES strings.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.n_files">
+<span class="sig-name descname"><span class="pre">n_files</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.n_files" title="Link to this definition"></a></dt>
+<dd><p>Number of fingerprint/ID/SMILES file triplets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.fp_files">
+<span class="sig-name descname"><span class="pre">fp_files</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.fp_files" title="Link to this definition"></a></dt>
+<dd><p>Paths to fingerprint (.npy) files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.id_files">
+<span class="sig-name descname"><span class="pre">id_files</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.id_files" title="Link to this definition"></a></dt>
+<dd><p>Paths to ID (.npy) files (dtype=int64).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.smi_files">
+<span class="sig-name descname"><span class="pre">smi_files</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.smi_files" title="Link to this definition"></a></dt>
+<dd><p>Paths to SMILES (.smi or similar) files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.fp_prefix">
+<span class="sig-name descname"><span class="pre">fp_prefix</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.fp_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for fingerprint files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.id_prefix">
+<span class="sig-name descname"><span class="pre">id_prefix</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.id_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for ID files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.smi_prefix">
+<span class="sig-name descname"><span class="pre">smi_prefix</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.smi_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for SMILES files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.suffixes">
+<span class="sig-name descname"><span class="pre">suffixes</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.suffixes" title="Link to this definition"></a></dt>
+<dd><p>Filename suffixes (excluding extension)
+for each library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.extensions">
+<span class="sig-name descname"><span class="pre">extensions</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.extensions" title="Link to this definition"></a></dt>
+<dd><p>File extensions for each library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.lengths">
+<span class="sig-name descname"><span class="pre">lengths</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.lengths" title="Link to this definition"></a></dt>
+<dd><p>Number of molecules per file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[int64]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.n_mols">
+<span class="sig-name descname"><span class="pre">n_mols</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.n_mols" title="Link to this definition"></a></dt>
+<dd><p>Total number of molecules in the library.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.fp_length_bytes">
+<span class="sig-name descname"><span class="pre">fp_length_bytes</span></span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.fp_length_bytes" title="Link to this definition"></a></dt>
+<dd><p>Number of bytes per fingerprint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.get_full_index">
+<span class="sig-name descname"><span class="pre">get_full_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">array_index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.get_full_index" title="Link to this definition"></a></dt>
+<dd><p>Convert a (library index, array index) pair to a full index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lib_index</strong> (<em>int</em>) – Library file index.</p></li>
+<li><p><strong>array_index</strong> (<em>int</em>) – Index within the library file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Full library index (0-based across all files).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.get_lib_array_indices">
+<span class="sig-name descname"><span class="pre">get_lib_array_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">full_index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.get_lib_array_indices" title="Link to this definition"></a></dt>
+<dd><p>Convert a full index to (library index, array index).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>full_index</strong> (<em>int</em>) – Full library index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(library index, array index) pair.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, int]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">full_index</span></code> is out of range.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.load_fps">
+<span class="sig-name descname"><span class="pre">load_fps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.load_fps" title="Link to this definition"></a></dt>
+<dd><p>Load fingerprints for a specific library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>lib_index</strong> (<em>int</em>) – Index of the library file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Fingerprint array.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[uint8]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.load_ids">
+<span class="sig-name descname"><span class="pre">load_ids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.load_ids" title="Link to this definition"></a></dt>
+<dd><p>Load IDs for a specific library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>lib_index</strong> (<em>int</em>) – Index of the library file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Array of molecule IDs.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[int64]</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This should only be called when ample memory is available. For single-CPU jobs,
+the _process_single_lib_chunked() method from <code class="xref py py-class docutils literal notranslate"><span class="pre">CSAlgo</span></code> is used.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.load_smiles">
+<span class="sig-name descname"><span class="pre">load_smiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.load_smiles" title="Link to this definition"></a></dt>
+<dd><p>Load SMILES strings for a specific library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>lib_index</strong> (<em>int</em>) – Index of the library file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of SMILES strings.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.fp_library.FpLibrary.load_smiles_indices">
+<span class="sig-name descname"><span class="pre">load_smiles_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.fp_library.FpLibrary.load_smiles_indices" title="Link to this definition"></a></dt>
+<dd><p>Load SMILES strings for specific indices in a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lib_index</strong> (<em>int</em>) – Index of the library file.</p></li>
+<li><p><strong>indices</strong> (<em>iterable</em><em>[</em><em>int</em><em>]</em>) – Indices of SMILES to load.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of SMILES strings.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">chemstep.chaining_log.</span></span><span class="sig-name descname"><span class="pre">ChainingLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fp_library</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclusion_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'excl'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mintd_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mintds'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mintd_distrib_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mintddistrib'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_empty_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jobs_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Bookkeeping for a ChemSTEP run across multiple rounds.</p>
+<p>Handles persistent storage of exclusion masks, minimum Tanimoto
+distance (minTD) arrays, and minTD distributions for each library
+chunk. Also manages job and log directories.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.fp_library">
+<span class="sig-name descname"><span class="pre">fp_library</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.fp_library" title="Link to this definition"></a></dt>
+<dd><p>The fingerprint library being screened.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary">FpLibrary</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.log_folder">
+<span class="sig-name descname"><span class="pre">log_folder</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.log_folder" title="Link to this definition"></a></dt>
+<dd><p>Path to the log directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.exclusion_prefix">
+<span class="sig-name descname"><span class="pre">exclusion_prefix</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.exclusion_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for exclusion files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.mintd_prefix">
+<span class="sig-name descname"><span class="pre">mintd_prefix</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.mintd_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for minTD files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.mintd_distrib_prefix">
+<span class="sig-name descname"><span class="pre">mintd_distrib_prefix</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.mintd_distrib_prefix" title="Link to this definition"></a></dt>
+<dd><p>Filename prefix for minTD
+distribution files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.jobs_folder">
+<span class="sig-name descname"><span class="pre">jobs_folder</span></span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.jobs_folder" title="Link to this definition"></a></dt>
+<dd><p>Path to the jobs directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.add_exclusions">
+<span class="sig-name descname"><span class="pre">add_exclusions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exclusions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.add_exclusions" title="Link to this definition"></a></dt>
+<dd><p>Add exclusions for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>exclusions</strong> (<em>np.ndarray</em><em>[</em><em>bool</em><em>]</em>) – Boolean array of new
+exclusions to add.</p></li>
+<li><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>AssertionError</strong> – If the shape of <code class="docutils literal notranslate"><span class="pre">exclusions</span></code> does not
+    match the stored exclusion array.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.add_mintds">
+<span class="sig-name descname"><span class="pre">add_mintds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mintds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_distrib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.add_mintds" title="Link to this definition"></a></dt>
+<dd><p>Update the minTD array for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mintds</strong> (<em>np.ndarray</em><em>[</em><em>float32</em><em>]</em>) – New minTD values to merge.</p></li>
+<li><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p></li>
+<li><p><strong>update_distrib</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, also recompute
+and save the minTD distribution.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.get_filename">
+<span class="sig-name descname"><span class="pre">get_filename</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ext</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.npy'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.get_filename" title="Link to this definition"></a></dt>
+<dd><p>Build a full path for a log file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prefix</strong> (<em>str</em>) – Filename prefix.</p></li>
+<li><p><strong>suffix</strong> (<em>str</em>) – Filename suffix.</p></li>
+<li><p><strong>ext</strong> (<em>str</em><em>, </em><em>optional</em>) – File extension. Defaults to <code class="docutils literal notranslate"><span class="pre">.npy</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Full file path.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.get_suffix">
+<span class="sig-name descname"><span class="pre">get_suffix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.get_suffix" title="Link to this definition"></a></dt>
+<dd><p>Get the filename suffix for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Filename suffix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.load_exclusions">
+<span class="sig-name descname"><span class="pre">load_exclusions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.load_exclusions" title="Link to this definition"></a></dt>
+<dd><p>Load the exclusion array for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Boolean mask of excluded molecules.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[uint8]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.load_global_mintd_distrib">
+<span class="sig-name descname"><span class="pre">load_global_mintd_distrib</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.load_global_mintd_distrib" title="Link to this definition"></a></dt>
+<dd><p>Load and sum minTD distributions across all library chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Global histogram array of length 1001.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray[int64]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.load_mintd_distrib">
+<span class="sig-name descname"><span class="pre">load_mintd_distrib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.load_mintd_distrib" title="Link to this definition"></a></dt>
+<dd><p>Load the minTD distribution for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Histogram array of length 1001.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[int64]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.load_mintds">
+<span class="sig-name descname"><span class="pre">load_mintds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.load_mintds" title="Link to this definition"></a></dt>
+<dd><p>Load the minTD array for a library chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em>) – Library chunk index.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>minTD values.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[float32]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemstep.chaining_log.ChainingLog.write_empty_files">
+<span class="sig-name descname"><span class="pre">write_empty_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.ChainingLog.write_empty_files" title="Link to this definition"></a></dt>
+<dd><p>Create empty exclusion, minTD, and minTD distribution files.</p>
+<p>Initializes all log files for each library chunk with the
+correct shape, dtype, and starting values:
+* Exclusions: zeros (uint8)
+* minTD: all set to 2.0 (float32)
+* minTD distributions: zeros (int64)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="chemstep.chaining_log.save_flush_np">
+<span class="sig-prename descclassname"><span class="pre">chemstep.chaining_log.</span></span><span class="sig-name descname"><span class="pre">save_flush_np</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.save_flush_np" title="Link to this definition"></a></dt>
+<dd><p>Save a NumPy array to disk and flush buffers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>np.ndarray</em>) – Array to save.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – Destination filename (<code class="docutils literal notranslate"><span class="pre">.npy</span></code> appended if
+missing).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="chemstep.chaining_log.update_mintds">
+<span class="sig-prename descclassname"><span class="pre">chemstep.chaining_log.</span></span><span class="sig-name descname"><span class="pre">update_mintds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mintds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclusions</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.update_mintds" title="Link to this definition"></a></dt>
+<dd><p>Merge new minTD values into an existing minTD array.</p>
+<dl class="simple">
+<dt>For each element:</dt><dd><ul class="simple">
+<li><p>If excluded, set to 2.0.</p></li>
+<li><p>Else, set to the minimum of existing and new minTD.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>np.ndarray</em><em>[</em><em>float32</em><em>]</em>) – Existing minTD values.</p></li>
+<li><p><strong>mintds</strong> (<em>np.ndarray</em><em>[</em><em>float32</em><em>]</em>) – New minTD values.</p></li>
+<li><p><strong>exclusions</strong> (<em>np.ndarray</em><em>[</em><em>bool</em><em>]</em>) – Exclusion mask.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated minTD values.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[float32]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="chemstep.chaining_log.get_mintd_distrib">
+<span class="sig-prename descclassname"><span class="pre">chemstep.chaining_log.</span></span><span class="sig-name descname"><span class="pre">get_mintd_distrib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mintds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#chemstep.chaining_log.get_mintd_distrib" title="Link to this definition"></a></dt>
+<dd><p>Compute a histogram of minTD values.</p>
+<p>Values &gt; 1 are ignored because they mean the molecule has been docked before.
+Remaining values are binned into 1001
+bins from 0.000 to 1.000 (inclusive).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mintds</strong> (<em>np.ndarray</em><em>[</em><em>float32</em><em>]</em>) – minTD values.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Histogram array of length 1001.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray[int64]</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="manual_docking.html" class="btn btn-neutral float-right" title="Running ChemSTEP in “manual” mode" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="configuration.html" class="btn btn-neutral float-left" title="ChemSTEP parameters/configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

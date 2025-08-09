@@ -21,7 +21,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Creating a Fingerprint Mesh" href="fingerprint_library.html" /> 
+    <link rel="next" title="API Reference" href="reference.html" />
+    <link rel="prev" title="Creating your own FpLibrary" href="fingerprint_library.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,8 +47,6 @@
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -55,8 +54,13 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating a Fingerprint Mesh</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">ChemSTEP parameters/configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fingerprint_library.html">Creating your own FpLibrary</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">ChemSTEP parameters/configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-file-format">Parameter file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-descriptions">Parameter descriptions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 
         </div>
@@ -85,14 +89,66 @@
              
   <section id="chemstep-parameters-configuration">
 <h1>ChemSTEP parameters/configuration<a class="headerlink" href="#chemstep-parameters-configuration" title="Link to this heading"></a></h1>
-<p>blank</p>
+<p>This page describes the main configuration parameters that control a
+ChemSTEP run. These parameters are typically stored in a plain-text
+parameter file, the path to which is passed to <a class="reference internal" href="reference.html#chemstep.algo.CSAlgo" title="chemstep.algo.CSAlgo"><code class="xref py py-class docutils literal notranslate"><span class="pre">CSAlgo</span></code></a>
+when creating a new ChemSTEP run.</p>
+<section id="parameter-file-format">
+<h2>Parameter file format<a class="headerlink" href="#parameter-file-format" title="Link to this heading"></a></h2>
+<p>The parameter file must contain one <code class="docutils literal notranslate"><span class="pre">key:</span> <span class="pre">value</span></code> pair per line.
+Order doesn’t matter. The following keys are required:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">seed_indices_file</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seed_scores_file</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hit_pprop</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_docked_per_round</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_beacons</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_n_rounds</span></code></p></li>
+</ol>
+<p>Example:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>seed_indices_file: seeds.indices.npy
+seed_scores_file: seeds.scores.npy
+hit_pprop: 4.0
+n_docked_per_round: 100000
+max_beacons: 100
+max_n_rounds: 100
+</pre></div>
+</div>
+</section>
+<section id="parameter-descriptions">
+<h2>Parameter descriptions<a class="headerlink" href="#parameter-descriptions" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">seed_indices_file</span></code> (str)</dt><dd><p>Path to a NumPy <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file (<code class="docutils literal notranslate"><span class="pre">int64</span></code> dtype) containing the
+<strong>full indices</strong> of the initial docked set. These indices must be
+compatible with the <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> used
+for the run.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">seed_scores_file</span></code> (str)</dt><dd><p>Path to a NumPy <code class="docutils literal notranslate"><span class="pre">.npy</span></code> file (<code class="docutils literal notranslate"><span class="pre">float32</span></code> dtype) containing docking
+scores for the initial docked set, in the same order as
+<code class="docutils literal notranslate"><span class="pre">seed_indices_file</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">hit_pprop</span></code> (float)</dt><dd><p>The pProportion threshold defining a docking “hit”. For example,
+<code class="docutils literal notranslate"><span class="pre">4.0</span></code> means the top <code class="docutils literal notranslate"><span class="pre">10**(-4)</span></code> fraction (0.01%) of the library.
+Used to determine the score cutoff for selecting beacons.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">n_docked_per_round</span></code> (int)</dt><dd><p>Number of molecules to prioritize, build, and dock in each round.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">max_beacons</span></code> (int)</dt><dd><p>Maximum number of beacons retained at any time. Beacons are top
+scoring molecules that guide further exploration and are selected
+to be maximally diverse from one another.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">max_n_rounds</span></code> (int)</dt><dd><p>Maximum number of chaining rounds to perform.</p>
+</dd>
+</dl>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="fingerprint_library.html" class="btn btn-neutral float-left" title="Creating a Fingerprint Mesh" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="fingerprint_library.html" class="btn btn-neutral float-left" title="Creating your own FpLibrary" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="reference.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

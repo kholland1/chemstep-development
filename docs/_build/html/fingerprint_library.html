@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Creating a Fingerprint Mesh &mdash; ChemSTEP  documentation</title>
+  <title>Creating your own FpLibrary &mdash; ChemSTEP  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
 
@@ -47,8 +47,6 @@
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -56,14 +54,16 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Advanced uses</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Creating a Fingerprint Mesh</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Creating your own FpLibrary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#workflow-overview">Workflow overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workflow">Workflow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#key-checks-performed">Key checks performed</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#loading-data-on-demand">Loading data on demand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#on-demand-loading">On-demand loading</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">ChemSTEP parameters/configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">API Reference</a></li>
 </ul>
 
         </div>
@@ -80,7 +80,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Creating a Fingerprint Mesh</li>
+      <li class="breadcrumb-item active">Creating your own FpLibrary</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/fingerprint_library.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,71 +90,100 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="creating-a-fingerprint-mesh">
-<h1>Creating a Fingerprint Mesh<a class="headerlink" href="#creating-a-fingerprint-mesh" title="Link to this heading"></a></h1>
-<p>This tutorial shows how to build a <strong>FpLibrary</strong> object from raw
-SMILES files and pre-computed Morgan fingerprints.</p>
+  <section id="creating-your-own-fplibrary">
+<h1>Creating your own FpLibrary<a class="headerlink" href="#creating-your-own-fplibrary" title="Link to this heading"></a></h1>
+<p>This guide shows how to build an <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> object
+from raw SMILES files using the built-in <code class="xref py py-func docutils literal notranslate"><span class="pre">compute_morgan_fps()</span></code>
+function in ChemSTEP.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>An <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> represents a large, chunked collection
+of molecules in both SMILES and binary fingerprint form, with matching integer IDs.
+You should generate the fingerprints using ChemSTEP’s high-performance
+<code class="xref py py-func docutils literal notranslate"><span class="pre">compute_morgan_fps()</span></code> helper, which wraps RDKit and
+returns contiguous <code class="docutils literal notranslate"><span class="pre">uint8</span></code> NumPy arrays.
+For this, you will need to have RDKit installed (see <a class="reference external" href="https://www.rdkit.org/docs/Install.html">https://www.rdkit.org/docs/Install.html</a> ).</p>
+<p>We recommend <strong>not compressing</strong> either the SMILES files or the fingerprint
+files:</p>
+<ul class="simple">
+<li><p>Uncompressed SMILES (<code class="docutils literal notranslate"><span class="pre">.smi</span></code>) files are much faster (10-20x) to read.</p></li>
+<li><p>Fingerprint files (128 bytes per compound for 1024-bit fingerprints) take up more space
+than the SMILES anyway, and compression would slow down I/O significantly in large-scale runs.</p></li>
+</ul>
+</section>
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>SMILES list split into chunks (one per future array job)</p></li>
-<li><p>Corresponding ZINC (or other) integer IDs</p></li>
-<li><p>Binary fingerprints stored as contiguous <strong>uint8</strong> NumPy arrays
-(shape: <em>n_molecules × fp_len_bytes</em>)</p></li>
+<li><p>One SMILES file per library chunk (these can be the input to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">compute_morgan_fps()</span></code>).</p></li>
+<li><p>Corresponding 64bit-integer IDs (e.g., ZINC IDs) in <code class="docutils literal notranslate"><span class="pre">.npy</span></code> files.</p></li>
 </ul>
 </section>
-<section id="workflow-overview">
-<h2>Workflow overview<a class="headerlink" href="#workflow-overview" title="Link to this heading"></a></h2>
+<section id="workflow">
+<h2>Workflow<a class="headerlink" href="#workflow" title="Link to this heading"></a></h2>
 <ol class="arabic">
-<li><p><strong>Generate fingerprints</strong> (RDKit)</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">rdkit</span> <span class="kn">import</span> <span class="n">Chem</span>
-<span class="kn">from</span> <span class="nn">rdkit.Chem</span> <span class="kn">import</span> <span class="n">AllChem</span>
+<li><p><strong>Generate fingerprints from SMILES</strong></p>
+<p>Using ChemSTEP’s built-in helper:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">chemstep.fingerprints</span> <span class="kn">import</span> <span class="n">compute_morgan_fps</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="k">def</span> <span class="nf">morgan_fp</span><span class="p">(</span><span class="n">smiles</span><span class="p">,</span> <span class="n">nbits</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
-    <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smiles</span><span class="p">)</span>
-    <span class="n">fp</span>  <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">GetMorganFingerprintAsBitVect</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">nBits</span><span class="o">=</span><span class="n">nbits</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">write_one_fp_file</span><span class="p">(</span><span class="n">smi_file</span><span class="p">,</span> <span class="n">fp_filename</span><span class="p">):</span>
+    <span class="n">fingerprints</span> <span class="o">=</span> <span class="n">compute_morgan_fps</span><span class="p">(</span><span class="n">smi_file</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fp_filename</span><span class="p">,</span> <span class="n">fingerprints</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>This produces one <code class="docutils literal notranslate"><span class="pre">.npy</span></code> fingerprint file per input <code class="docutils literal notranslate"><span class="pre">.smi</span></code> file.</p>
+<p>The speed is approximately 1000 fingerprints / second on a modern CPU,
+so you will need to parallelize this step for large libraries.</p>
 </li>
-<li><p><strong>Save data</strong>
-Save <em>fpsXXXX.npy</em>, <em>zidsXXXX.npy</em>, and <em>smiXXXX.smi</em> where
-<strong>XXXX</strong> is a numeric/alpha suffix shared by the trio.</p></li>
-<li><p><strong>Instantiate</strong> <code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">lib</span> <span class="o">=</span> <span class="n">FpLibrary</span><span class="p">(</span>
-    <span class="n">fingerprint_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;fps*.npy&#39;</span><span class="p">)),</span>
-    <span class="n">id_files</span>          <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;zids*.npy&#39;</span><span class="p">)),</span>
-    <span class="n">smi_files</span>         <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;smi*.smi&#39;</span><span class="p">)),</span>
-    <span class="n">outname</span>           <span class="o">=</span> <span class="s1">&#39;zinc.fp_lib.pickle&#39;</span>
+<li><p><strong>Prepare ID files</strong>
+You should prepare corresponding
+<code class="docutils literal notranslate"><span class="pre">.npy</span></code> files containing a 64-bit integer ID for every compound.
+The IDs should be in the same order as the
+SMILES and fingerprints, and should be 64-bit integers (<code class="docutils literal notranslate"><span class="pre">np.int64</span></code>).
+Save matching <code class="docutils literal notranslate"><span class="pre">.npy</span></code> files with <code class="docutils literal notranslate"><span class="pre">np.int64</span></code> IDs
+(same order as the SMILES/fingerprints). These will be split in chunks the
+same way as the smiles and fingerprints.</p></li>
+<li><p><strong>Instantiate an FpLibrary</strong>
+Here is an example of how to instantiate an <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">chemstep.fp_library</span> <span class="kn">import</span> <span class="n">FpLibrary</span>
+
+<span class="n">lib</span> <span class="o">=</span> <span class="n">FpLibrary</span><span class="p">(</span>
+    <span class="n">fingerprint_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;absolute/path/to/your/fps*.npy&#39;</span><span class="p">)),</span>
+    <span class="n">id_files</span>          <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;absolute/path/to/your/zids*.npy&#39;</span><span class="p">)),</span>
+    <span class="n">smi_files</span>         <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;absolute/path/to/your/smi*.smi&#39;</span><span class="p">)),</span>
+    <span class="n">outname</span>           <span class="o">=</span> <span class="s1">&#39;zinc_fplib.pickle&#39;</span>
 <span class="p">)</span>
 </pre></div>
 </div>
+<p>The .pickle library file can then be copied anywhere and loaded in lieue of
+rebuilding the library with:</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">chemstep.fp_library</span> <span class="kn">import</span> <span class="n">FpLibrary</span>
+
+<span class="n">lib</span> <span class="o">=</span> <span class="n">FpLibrary</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;zinc_fplib.pickle&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
 </li>
 </ol>
 </section>
 <section id="key-checks-performed">
 <h2>Key checks performed<a class="headerlink" href="#key-checks-performed" title="Link to this heading"></a></h2>
+<p>The <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> constructor will ensure:</p>
 <ul class="simple">
-<li><p>All three filename prefixes match <strong>exactly</strong>.</p></li>
-<li><p>Each trio has identical length; <em>fp_len_bytes</em> is constant.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">dtype</span></code> validation (<code class="docutils literal notranslate"><span class="pre">np.uint8</span></code> for fps, <code class="docutils literal notranslate"><span class="pre">np.int64</span></code> for IDs).</p></li>
+<li><p>All filename prefixes match exactly across SMILES, ID, and fingerprint files.</p></li>
+<li><p>Each file trio has identical length, with a constant fingerprint length
+(<code class="docutils literal notranslate"><span class="pre">fp_len_bytes</span></code>) across the library.</p></li>
+<li><p>Correct <code class="docutils literal notranslate"><span class="pre">dtype</span></code>: <code class="docutils literal notranslate"><span class="pre">np.uint8</span></code> for fingerprints, <code class="docutils literal notranslate"><span class="pre">np.int64</span></code> for IDs.</p></li>
 </ul>
 </section>
-<section id="loading-data-on-demand">
-<h2>Loading data on demand<a class="headerlink" href="#loading-data-on-demand" title="Link to this heading"></a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">FpLibrary</span></code> keeps only filenames in memory.  Fingerprints/IDs are
-memory-mapped when needed, enabling petabyte-scale libraries.</p>
-<dl class="py method">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">FpLibrary.</span></span><span class="sig-name descname"><span class="pre">load_fps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em><span class="sig-paren">)</span></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">FpLibrary.</span></span><span class="sig-name descname"><span class="pre">get_full_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">array_index</span></span></em><span class="sig-paren">)</span></dt>
-<dd></dd></dl>
-
+<section id="on-demand-loading">
+<h2>On-demand loading<a class="headerlink" href="#on-demand-loading" title="Link to this heading"></a></h2>
+<p>An <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> stores only the file paths in memory.
+Data is loaded from disk only when requested, keeping memory use minimal.
+See the <a class="reference internal" href="reference.html#chemstep.fp_library.FpLibrary" title="chemstep.fp_library.FpLibrary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FpLibrary</span></code></a> documentation for details.</p>
 </section>
 </section>
 
