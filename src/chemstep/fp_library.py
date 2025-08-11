@@ -194,7 +194,7 @@ class FpLibrary:
         """
         with open(self.smi_files[lib_index]) as f:
             lines = f.readlines()
-        return [lines[i].strip()[0] for i in indices]
+        return [lines[i].split()[0] for i in indices]
 
     def get_full_index(self, lib_index, array_index):
         """Convert a (library index, array index) pair to a full index.
