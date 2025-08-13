@@ -9,7 +9,7 @@ from multiprocessing import Pool
 from numba import njit
 from chemstep.fingerprints import get_tanimoto_max
 import os
-from chemstep.job_array import SlurmJobArray, SGEJobArray
+from chemstep.job_array import SlurmJobArray, SGEJobArray, SlurmNodeArray
 from chemstep.utils import read_np_data
 from chemstep.id_helper import int64_to_char, char_to_int64
 from numpy.lib.format import open_memmap
@@ -158,7 +158,7 @@ class CSAlgo:
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
-                 scores_fns=None):
+                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -192,6 +192,8 @@ class CSAlgo:
                       "lead to using the system Python, which may not have all dependencies installed)")
         self.python_exec = python_exec
         self.scheduler = scheduler
+        self.slurm_node_array = bool(slurm_node_array)
+        self.slurm_tasks_per_node = int(slurm_tasks_per_node)
         if slurm_options is None:
             slurm_options = {
                 "account": "rrg-mailhoto",
@@ -211,9 +213,9 @@ class CSAlgo:
         self.sge_options = sge_options
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory, write_empty_files=False)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc, write_empty_files=False)
         else:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc)
         self.print_verbose("ChainingLog set")
         self.score_thresh = None
         self.unused_beacons = []
@@ -296,7 +298,7 @@ class CSAlgo:
         # async deletion of job pickles and outputs if everything ran smoothly
         if array_jobid is not None:
             threading.Thread(
-                target=self._cleanup_round_artifacts(round_n, self.scheduler, array_jobid),
+                target=self._cleanup_round_artifacts,
                 args=(round_n, self.scheduler, array_jobid),
                 daemon=True
             ).start()
@@ -412,17 +414,26 @@ class CSAlgo:
         round_n : int
             Current round number (used in filenames).
         """
-        self.dump_job_pickles(jobs, round_n)
-        job_array = SlurmJobArray(
-            round_n=round_n,
-            n_jobs=len(jobs),
-            job_folder=self.chaining_log.jobs_folder,
-            python_exec=self.python_exec,
-            slurm_options=self.slurm_options
-        )
-        job_id = job_array.submit()
-        job_array.wait(job_id)
-        return job_id
+        if self.slurm_node_array:
+            self.dump_job_pickles(jobs, round_n)
+            launcher = SlurmNodeArray(self.chaining_log.jobs_folder, round_n, len(jobs),
+                                      tasks_per_node=self.slurm_tasks_per_node, python_exec=self.python_exec,
+                                      slurm_options=self.slurm_options)
+            job_id = launcher.submit()
+            launcher.wait()
+            return job_id
+        else:
+            self.dump_job_pickles(jobs, round_n)
+            job_array = SlurmJobArray(
+                round_n=round_n,
+                n_jobs=len(jobs),
+                job_folder=self.chaining_log.jobs_folder,
+                python_exec=self.python_exec,
+                slurm_options=self.slurm_options
+            )
+            job_id = job_array.submit()
+            job_array.wait(job_id)
+            return job_id
 
     def run_sge_array(self, jobs, round_n):
         """Submit search jobs as an SGE array and wait for completion.
@@ -588,13 +599,14 @@ class CSAlgo:
             if lib_i not in lib_arr_dict:
                 lib_arr_dict[lib_i] = set()
             lib_arr_dict[lib_i].add(arr_i)
-
+        args = []
         for lib_i in lib_arr_dict:
-            exclusions = np.zeros(self.fp_lib.lengths[lib_i], dtype=np.uint8)
-            # TODO: make chunked
-            for arr_i in lib_arr_dict[lib_i]:
-                exclusions[arr_i] = 1
-            self.chaining_log.add_exclusions(exclusions, lib_i)
+            args.append((self.chaining_log,
+                         lib_i,
+                         np.array(list(lib_arr_dict[lib_i]), dtype=np.int64),
+                         self.fp_lib.lengths[lib_i]))
+        with Pool(self.n_proc) as p:
+            p.starmap(_add_exclusions_one_index, args)
 
     def get_beacons(self, new_indices, new_scores):
         """Select a maximally diverse set of beacons from latest hits (max-min Tanimoto distance to previous beacons).
@@ -726,23 +738,46 @@ class CSAlgo:
         # first, small sleep to make sure everything is written
         time.sleep(10)
         jf = self.chaining_log.jobs_folder
+        jf = self.chaining_log.jobs_folder
         try:
-            for j in range(self.fp_lib.n_files):
-                p = os.path.join(jf, f"{round_n}_{j}.pickle")
+            # 1) All pickles for this round (SearchJob + NodeJob)
+            pickle_patterns = {
+                os.path.join(jf, f"{round_n}_*.pickle"),
+                os.path.join(jf, f"{round_n}_node_*.pickle"),
+            }
+            to_delete = set()
+            for patt in pickle_patterns:
+                to_delete.update(glob.glob(patt))
+
+            for p in to_delete:
                 if os.path.isfile(p):
                     os.remove(p)
 
+            # 2) Scheduler logs
             if scheduler == "slurm":
-                patt = os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.out")
-                for p in glob.glob(patt):
-                    if os.path.isfile(p):
-                        os.remove(p)
+                slurm_patterns = [
+                    # Regular array logs (%x was 'slurm_{round_n}')
+                    os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.out"),
+                    os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.err"),
+                    # Node array logs (explicit templates in SlurmNodeArray)
+                    os.path.join(jf, f"slurm-node-{array_jobid}_*.out"),
+                    os.path.join(jf, f"slurm-node-{array_jobid}_*.err"),
+                ]
+                for patt in slurm_patterns:
+                    for p in glob.glob(patt):
+                        if os.path.isfile(p):
+                            os.remove(p)
 
             elif scheduler == "sge":
-                patt = os.path.join(jf, f"sge_{round_n}_*.out")
-                for p in glob.glob(patt):
-                    if os.path.isfile(p):
-                        os.remove(p)
+                sge_patterns = [
+                    os.path.join(jf, f"sge_{round_n}_*.out"),
+                    os.path.join(jf, f"sge_{round_n}_*.err"),
+                ]
+                for patt in sge_patterns:
+                    for p in glob.glob(patt):
+                        if os.path.isfile(p):
+                            os.remove(p)
+
         except Exception as e:
             # Best effort: never crash the main run; print if verbose
             self.print_verbose(f"[failed cleanup r{round_n}] {e}")
@@ -803,4 +838,10 @@ def _get_todock_libarray_indices(lib_array_indices, mintds, exclusions, mintd_th
             n_todock += 1
             exclusions[i] = 1
     return n_todock, indices[:count]
+
+
+def _add_exclusions_one_index(chaining_log, lib_index, array_indices, n):
+    exclusions = np.zeros(n, dtype=np.uint8)
+    exclusions[array_indices] = 1
+    chaining_log.add_exclusions(exclusions, lib_index)
 

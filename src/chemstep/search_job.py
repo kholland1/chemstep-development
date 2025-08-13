@@ -14,7 +14,8 @@ def run_from_pickle(pickle_path):
     """
     with open(pickle_path, 'rb') as f:
         job = pickle.load(f)
-    assert isinstance(job, SearchJob)
+    if not isinstance(job, SearchJob):
+        raise ValueError(f"Pickle at {pickle_path} is not a SearchJob.")
 
     job.run_job()
 

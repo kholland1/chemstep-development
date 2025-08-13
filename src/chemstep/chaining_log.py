@@ -2,6 +2,7 @@ from chemstep.fp_library import FpLibrary
 import numpy as np
 from numba import njit
 import os
+from multiprocessing import Pool
 
 
 class ChainingLog:
@@ -21,7 +22,7 @@ class ChainingLog:
         jobs_folder (str): Path to the jobs directory.
     """
 
-    def __init__(self, fp_library, log_folder, exclusion_prefix="excl", mintd_prefix="mintds",
+    def __init__(self, fp_library, log_folder, n_proc, exclusion_prefix="excl", mintd_prefix="mintds",
                  mintd_distrib_prefix="mintddistrib", write_empty_files=True,
                  jobs_folder=None):
         """Initialize a :class:`ChainingLog` instance.
@@ -44,9 +45,11 @@ class ChainingLog:
         if log_folder.endswith('/'):
             log_folder = log_folder[:-1]
         self.log_folder = log_folder
+        self.n_proc = n_proc
         self.exclusion_prefix = exclusion_prefix
         self.mintd_prefix = mintd_prefix
         self.mintd_distrib_prefix = mintd_distrib_prefix
+
         if jobs_folder is None:
             self.jobs_folder = "{}/jobs".format(self.log_folder)
         else:
@@ -71,16 +74,13 @@ class ChainingLog:
         shapes = [None, None, 1001]
         data_types = [np.uint8, np.float32, np.int64]
         init_vals = [0, 2, 0]
+        args = []
         for i, suffix in enumerate(self.fp_library.suffixes):
             length = self.fp_library.lengths[i]
             for prefix, shape, data_type, init_val in zip(prefixes, shapes, data_types, init_vals):
-                if shape is None:
-                    shape = length
-                if init_val != 0:
-                    data = np.full(shape, init_val, dtype=data_type)
-                else:
-                    data = np.zeros(shape, dtype=data_type)
-                np.save(self.get_filename(prefix, suffix), data)
+                args.append((shape, length, init_val, data_type, self.get_filename(prefix, suffix)))
+        with Pool(self.n_proc) as p:
+            p.starmap(_write_one_empty_files_set, args)
 
     def load_exclusions(self, index):
         """Load the exclusion array for a library chunk.
@@ -275,4 +275,14 @@ def get_mintd_distrib(mintds):
         index = int(np.floor(mintd*1000))
         distrib[index] += 1
     return distrib
+
+
+def _write_one_empty_files_set(shape, length, init_val, data_type, filename):
+    if shape is None:
+        shape = length
+    if init_val != 0:
+        data = np.full(shape, init_val, dtype=data_type)
+    else:
+        data = np.zeros(shape, dtype=data_type)
+    np.save(filename, data)
 
