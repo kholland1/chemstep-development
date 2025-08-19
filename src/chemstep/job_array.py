@@ -115,7 +115,7 @@ class SGEJobArray(JobArray):
         print(f"[INFO] Submitted SGE job array with ID {job_id}")
         return job_id
 
-    def wait(self, job_id, poll_interval=30, timeout=36000):
+    def wait(self, job_id, poll_interval=30):
         """
         Block until every task in the SGE array has completed.
 
@@ -158,11 +158,6 @@ class SGEJobArray(JobArray):
                         )
                 print(f"[INFO] SGE job array {job_id} appears to have completed.")
                 return
-
-            if time.time() - t0 > timeout:
-                raise TimeoutError(
-                    f"SGE job array {job_id} did not complete within {timeout} s."
-                )
 
             time.sleep(poll_interval)
 
