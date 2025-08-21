@@ -519,7 +519,6 @@ class CSAlgo:
 
         args = [(i, mintd_bin_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
 
-        from multiprocessing import Pool
         with Pool(self.n_proc) as pool:
             results = pool.starmap(_process_single_lib_chunked, args)
 
