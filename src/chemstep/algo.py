@@ -277,31 +277,33 @@ class CSAlgo:
             self.book.log_round(round_n-1, len(new_indices), n_hits, self.current_mintd_thresh,
                                 beacon_ids, beacon_scores, self.current_beacons_dists)
         beacons = self.get_beacons(new_indices, new_scores)
-        self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
-        jobs = []
-        for j in range(self.fp_lib.n_files):
-            unique_id = "{}_{}".format(round_n, j)
-            job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
-            jobs.append(job)
-        array_jobid = None
-        if self.scheduler == "slurm":
-            array_jobid = self.run_slurm_array(jobs, round_n)
-        elif self.scheduler == "sge":
-            array_jobid = self.run_sge_array(jobs, round_n)
-        else:
+        if len(beacons) != 0:
+            self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
+            jobs = []
+            for j in range(self.fp_lib.n_files):
+                unique_id = "{}_{}".format(round_n, j)
+                job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
+                jobs.append(job)
+            array_jobid = None
+            if self.scheduler == "slurm":
+                array_jobid = self.run_slurm_array(jobs, round_n)
+            elif self.scheduler == "sge":
+                array_jobid = self.run_sge_array(jobs, round_n)
+            else:
+                if self.scheduler is not None:
+                    raise ValueError(f"Unsupported scheduler: {self.scheduler}")
+                self.run_local(jobs)
             if self.scheduler is not None:
-                raise ValueError(f"Unsupported scheduler: {self.scheduler}")
-            self.run_local(jobs)
-        if not self.all_jobs_completed(round_n):
-            raise RuntimeError(f"Not all jobs for round {round_n} completed. Check the job folder: {self.chaining_log.jobs_folder}")
+                if not self.all_jobs_completed(round_n):
+                    raise RuntimeError(f"Not all jobs for round {round_n} completed. Check the job folder: {self.chaining_log.jobs_folder}")
 
-        # async deletion of job pickles and outputs if everything ran smoothly
-        if array_jobid is not None:
-            threading.Thread(
-                target=self._cleanup_round_artifacts,
-                args=(round_n, self.scheduler, array_jobid),
-                daemon=True
-            ).start()
+            # async deletion of job pickles and outputs if everything ran smoothly
+            if array_jobid is not None:
+                threading.Thread(
+                    target=self._cleanup_round_artifacts,
+                    args=(round_n, self.scheduler, array_jobid),
+                    daemon=True
+                ).start()
 
         self.print_verbose("Starting docking for round {}".format(round_n))
         lib_array_indices, smi_list, absolute_ids = self.get_todock_list(round_n)
