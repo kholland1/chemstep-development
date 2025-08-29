@@ -14,7 +14,9 @@ from chemstep.utils import read_np_data
 from chemstep.id_helper import int64_to_char, char_to_int64
 from numpy.lib.format import open_memmap
 from chemstep.bookkeeper import Bookkeeper
-import threading, glob, time
+import threading
+import glob
+import time
 
 
 def load_from_pickle(fn):

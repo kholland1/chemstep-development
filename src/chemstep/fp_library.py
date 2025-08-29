@@ -192,9 +192,23 @@ class FpLibrary:
         Returns:
             list[str]: List of SMILES strings.
         """
+        smiles_list = []
+        indices = sorted(indices)
+        n = len(indices)
+        count = 0
+        current_target = indices[count]
         with open(self.smi_files[lib_index]) as f:
-            lines = f.readlines()
-        return [lines[i].split()[0] for i in indices]
+            for i, line in enumerate(f):
+                if i == current_target:
+                    smiles_list.append(line.strip())
+                    count += 1
+                    if count == n:
+                        break
+                    current_target = indices[count]
+        assert len(smiles_list) == n, "Only found {} of {} requested smiles in file {}".format(
+            len(smiles_list), n, self.smi_files[lib_index]
+        )
+        return smiles_list
 
     def get_full_index(self, lib_index, array_index):
         """Convert a (library index, array index) pair to a full index.
