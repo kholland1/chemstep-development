@@ -180,7 +180,7 @@ class FpLibrary:
         """
         with open(self.smi_files[lib_index]) as f:
             lines = f.readlines()
-        return [line.strip()[0] for line in lines]
+        return [line.split()[0] for line in lines]
 
     def load_smiles_indices(self, lib_index, indices):
         """Load SMILES strings for specific indices in a library chunk.
@@ -200,7 +200,7 @@ class FpLibrary:
         with open(self.smi_files[lib_index]) as f:
             for i, line in enumerate(f):
                 if i == current_target:
-                    smiles_list.append(line.strip())
+                    smiles_list.append(line.split()[0])
                     count += 1
                     if count == n:
                         break
