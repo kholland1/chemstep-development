@@ -533,6 +533,7 @@ class CSAlgo:
                 break
         assert mintd_bin_thresh is not None
         self.current_mintd_thresh = (mintd_bin_thresh + 0.5) / 1000
+        self.print_verbose(f"minTD threshold for round {round_n} set to {self.current_mintd_thresh:.3f}")
 
         args = [(i, mintd_bin_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
 
