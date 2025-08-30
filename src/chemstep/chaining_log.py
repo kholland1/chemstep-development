@@ -279,7 +279,7 @@ def get_mintd_distrib(mintds):
     return distrib
 
 
-def _bak_write_one_empty_files_set(shape, length, init_val, data_type, filename):
+def _write_one_empty_files_set(shape, length, init_val, data_type, filename):
     if shape is None:
         shape = length
     if init_val != 0:
@@ -289,7 +289,8 @@ def _bak_write_one_empty_files_set(shape, length, init_val, data_type, filename)
     np.save(filename, data)
 
 
-def _write_one_empty_files_set(shape, length, init_val, data_type, filename, chunk_size=1_000_000):
+def _broken_write_one_empty_files_set(shape, length, init_val, data_type, filename, chunk_size=1_000_000):
+    # TODO : figure out why this is broken (something to do with the shape)
     if shape is None:
         shape = length
 
@@ -307,12 +308,7 @@ def _write_one_empty_files_set(shape, length, init_val, data_type, filename, chu
         total_size = arr.shape[0] if isinstance(shape, (tuple, list)) else shape
         for st in range(0, total_size, chunk_size):
             end = min(st + chunk_size, total_size)
-            arr[st:end] = np.full(
-                (end - st,) + tuple(shape[1:]) if isinstance(shape, tuple) else (end - st,),
-                init_val,
-                dtype=data_type
-            )
-
+            arr[st:end] = np.full(end - st, init_val, dtype=data_type)
     # Ensure changes are written to disk
     del arr
 

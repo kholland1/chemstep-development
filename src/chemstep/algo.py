@@ -288,8 +288,9 @@ class CSAlgo:
             self.book.log_round(round_n-1, len(new_indices), n_hits, self.current_mintd_thresh,
                                 beacon_ids, beacon_scores, self.current_beacons_dists)
         beacons = self.get_beacons(new_indices, new_scores)
+        t0 = time.time()
         if len(beacons) != 0:
-            self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons")
+            self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons at time {time.asctime()}")
             jobs = []
             for j in range(self.fp_lib.n_files):
                 unique_id = "{}_{}".format(round_n, j)
@@ -315,6 +316,8 @@ class CSAlgo:
                     args=(round_n, self.scheduler, array_jobid),
                     daemon=True
                 ).start()
+        else:
+            self.print_verbose(f"No new beacons found in round {round_n}, skipping minTD updates but will still dock")
 
         self.print_verbose("Starting docking for round {}".format(round_n))
         lib_array_indices, smi_list, absolute_ids = self.get_todock_list(round_n)
@@ -333,6 +336,7 @@ class CSAlgo:
         if self.use_pickle:
             with open(f'{self.pickle_prefix}_{round_n}.pickle', 'wb') as f:
                 pickle.dump(self, f)
+        self.print_verbose(f"Round {round_n} complete at time {time.asctime()} (took {time.time() - t0:.1f} s)")
         return new_indices, new_scores
 
     def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
