@@ -723,7 +723,7 @@ class CSAlgo:
             selected[max_index] = 1
             kept_beacons.append(self.unused_beacons[max_index])
             distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
-            self.print_verbose(f"Selected beacon {self.unused_beacons[max_index][1]} with score {self.unused_beacons[max_index][0]:.2f} and minTD {distances[-1]:.3f}")
+            self.print_verbose(f"Selected beacon {self.unused_beacons[max_index][1]} with score {self.unused_beacons[max_index][0]:.2f} and maxminTD {distances[-1]:.3f}")
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
         self.current_beacons = kept_beacons
         self.current_beacons_dists = distances
