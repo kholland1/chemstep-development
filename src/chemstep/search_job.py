@@ -67,8 +67,8 @@ class SearchJob:
 
         for start in range(0, n_mols, self.chunk_size):
             end = min(start + self.chunk_size, n_mols)
-            fp_chunk = fps[start:end]
-            excl_chunk = exclusions[start:end]
+            fp_chunk = np.array(fps[start:end], dtype=np.uint8, copy=True)
+            excl_chunk = np.array(exclusions[start:end], dtype=np.uint8, copy=True)
             mintd_chunk = 1 - get_tanimoto_max_excl(self.beacons, fp_chunk, excl_chunk)
             mintds[start:end] = np.minimum(mintds[start:end], mintd_chunk)
 

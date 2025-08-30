@@ -160,7 +160,7 @@ class CSAlgo:
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
-                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64):
+                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -196,6 +196,12 @@ class CSAlgo:
         self.scheduler = scheduler
         self.slurm_node_array = bool(slurm_node_array)
         self.slurm_tasks_per_node = int(slurm_tasks_per_node)
+        self.use_logfile = use_logfile
+        self.logfile = None
+        if self.use_logfile:
+            self.logfile = f"{self.pickle_prefix}.log"
+            with open(self.logfile, 'a') as f:
+                f.write(f"=== New ChemSTEP log started at {time.asctime()} ===\n")
         if slurm_options is None:
             slurm_options = {
                 "account": "rrg-mailhoto",
@@ -237,7 +243,11 @@ class CSAlgo:
             Message to print.
         """
         if self.verbose:
-            print(s)
+            if self.use_logfile:
+                with open(self.logfile, 'a') as f:
+                    f.write(s + '\n')
+            else:
+                print(s)
 
     def run_one_round(self, round_n, new_indices, new_scores):
         """Execute a complete ChemSTEP round.
@@ -673,9 +683,12 @@ class CSAlgo:
             lib_arr_dict[lib_index][arr_index] = i
 
         for lib_index in lib_arr_dict:
-            fps = self.fp_lib.load_fps(lib_index)
+            sub_indices = []
             for arr_index in lib_arr_dict[lib_index]:
-                all_fps[lib_arr_dict[lib_index][arr_index]] = fps[arr_index]
+                sub_indices.append(arr_index)
+            fps = self.fp_lib.load_fps_subset(lib_index, sub_indices)
+            for arr_index, fp in zip(sub_indices, fps):
+                all_fps[lib_arr_dict[lib_index][arr_index]] = fp
         return all_fps
 
     def apply_beacons_diversity_maxdiv(self):
@@ -706,6 +719,7 @@ class CSAlgo:
             selected[max_index] = 1
             kept_beacons.append(self.unused_beacons[max_index])
             distance_vector = np.minimum(distance_vector, 1 - get_tanimoto_max(np.array([all_fps[max_index]]), all_fps))
+            self.print_verbose(f"Selected beacon {self.unused_beacons[max_index][1]} with score {self.unused_beacons[max_index][0]:.2f} and minTD {distances[-1]:.3f}")
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
         self.current_beacons = kept_beacons
         self.current_beacons_dists = distances
@@ -806,9 +820,9 @@ def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, chu
 
     for start in range(0, n_mols, chunk_size):
         end = min(start + chunk_size, n_mols)
-        chunk_mintds = mintds[start:end]
+        chunk_mintds = np.array(mintds[start:end], dtype=np.float32, copy=True)
         chunk_bins = np.floor(chunk_mintds * 1000).astype(np.int64)
-        chunk_excls = exclusions[start:end]
+        chunk_excls = np.array(exclusions[start:end], dtype=np.uint8, copy=True)
 
         for i, (mintd_bin, excl) in enumerate(zip(chunk_bins, chunk_excls)):
             if not excl and mintd_bin <= bin_thresh:

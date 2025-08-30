@@ -1,6 +1,7 @@
 from chemstep.docking_algorithm import DockingAlgorithm
 from chemstep.fp_library import FpLibrary
 import numpy as np
+from numpy.lib.format import open_memmap
 
 
 class LookupDocking(DockingAlgorithm):
@@ -25,9 +26,9 @@ class LookupDocking(DockingAlgorithm):
                 while i < len(self.lib_arr_indices) and self.lib_arr_indices[i][0] == lib_index:
                     indices.append(self.lib_arr_indices[i][1])
                     i += 1
-                self.scores_list[count:count+len(indices)] = np.load(self.scores_fns[lib_index], mmap_mode='r')[indices]
+                refscores = open_memmap(self.scores_fns[lib_index], dtype=np.float32, mode='r')
+                self.scores_list[count:count+len(indices)] = refscores[indices]
                 count += len(indices)
-
                 if self.verbose:
                     print("Now docking lib_index {}".format(lib_index))
             else:

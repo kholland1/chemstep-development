@@ -3,6 +3,8 @@ import numpy as np
 from numba import njit
 import os
 from multiprocessing import Pool
+from numpy.lib.format import open_memmap
+import time
 
 
 class ChainingLog:
@@ -277,7 +279,7 @@ def get_mintd_distrib(mintds):
     return distrib
 
 
-def _write_one_empty_files_set(shape, length, init_val, data_type, filename):
+def _bak_write_one_empty_files_set(shape, length, init_val, data_type, filename):
     if shape is None:
         shape = length
     if init_val != 0:
@@ -285,4 +287,32 @@ def _write_one_empty_files_set(shape, length, init_val, data_type, filename):
     else:
         data = np.zeros(shape, dtype=data_type)
     np.save(filename, data)
+
+
+def _write_one_empty_files_set(shape, length, init_val, data_type, filename, chunk_size=1_000_000):
+    if shape is None:
+        shape = length
+
+    # Create an on-disk array (doesn't load whole thing into memory)
+    arr = np.lib.format.open_memmap(
+        filename,
+        mode='w+',
+        dtype=data_type,
+        shape=shape
+    )
+
+    # If init_val is zero, np.memmap already guarantees it's zero-initialized
+    if init_val != 0:
+        # Fill in chunks to avoid memory spikes
+        total_size = arr.shape[0] if isinstance(shape, (tuple, list)) else shape
+        for st in range(0, total_size, chunk_size):
+            end = min(st + chunk_size, total_size)
+            arr[st:end] = np.full(
+                (end - st,) + tuple(shape[1:]) if isinstance(shape, tuple) else (end - st,),
+                init_val,
+                dtype=data_type
+            )
+
+    # Ensure changes are written to disk
+    del arr
 

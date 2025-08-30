@@ -182,6 +182,26 @@ class FpLibrary:
             lines = f.readlines()
         return [line.split()[0] for line in lines]
 
+    def load_fps_subset(self, lib_index, sub_indices):
+        """
+        Load only a subset of fingerprints for a specific library chunk.
+
+        Args:
+            lib_index (int): Index of the library file.
+            sub_indices (array-like): Row indices to load.
+
+        Returns:
+            np.ndarray[uint8]: Fingerprint array containing only the selected rows.
+        """
+        fp_path = self.fp_files[lib_index]
+
+        # Open as memmap so we don't load everything into RAM
+        fps_memmap = np.load(fp_path, mmap_mode="r")
+
+        subset = fps_memmap[sub_indices]
+
+        return np.array(subset, copy=True)
+
     def load_smiles_indices(self, lib_index, indices):
         """Load SMILES strings for specific indices in a library chunk.
 
