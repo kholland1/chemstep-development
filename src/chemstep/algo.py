@@ -246,8 +246,7 @@ class CSAlgo:
             if self.use_logfile:
                 with open(self.logfile, 'a') as f:
                     f.write(s + '\n')
-            else:
-                print(s)
+            print(s)
 
     def run_one_round(self, round_n, new_indices, new_scores):
         """Execute a complete ChemSTEP round.
