@@ -215,6 +215,8 @@ class FpLibrary:
         smiles_list = []
         indices = sorted(indices)
         n = len(indices)
+        if n == 0:
+            return smiles_list
         count = 0
         current_target = indices[count]
         with open(self.smi_files[lib_index]) as f:

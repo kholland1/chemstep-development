@@ -1,3 +1,5 @@
+.DS_Store
+*/.DS_Store
 .idea
 dist
 src/chemstep.egg-info
