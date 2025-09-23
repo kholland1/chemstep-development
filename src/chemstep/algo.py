@@ -17,7 +17,7 @@ from chemstep.bookkeeper import Bookkeeper
 import threading
 import glob
 import time
-
+from chemstep.autodock_algo import AutoDocking
 
 def load_from_pickle(fn):
     """
@@ -160,7 +160,7 @@ class CSAlgo:
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
-                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True):
+                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -198,6 +198,7 @@ class CSAlgo:
         self.slurm_tasks_per_node = int(slurm_tasks_per_node)
         self.use_logfile = use_logfile
         self.logfile = None
+        self.max_reruns = int(max_reruns)
         if self.use_logfile:
             self.logfile = f"{self.pickle_prefix}.log"
             with open(self.logfile, 'a') as f:
@@ -214,7 +215,7 @@ class CSAlgo:
         self.slurm_options = slurm_options
         if sge_options is None:
             sge_options = {
-                "l": "h_rt=01:00:00",
+                "l": "h_rt=12:00:00",
                 "S": "/bin/bash",
                 "P": "shoichetlab"
             }
@@ -233,6 +234,7 @@ class CSAlgo:
         self.used_beacons_fps = np.zeros((self.params.max_n_rounds * self.params.max_beacons,
                                           self.fp_lib.fp_length_bytes), dtype=np.uint8)
         self.used_beacons_count = 0
+        self.dockfiles_path = dockfiles_path
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -292,6 +294,7 @@ class CSAlgo:
         if len(beacons) != 0:
             self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons at time {time.asctime()}")
             jobs = []
+            self.is_restartable = True
             for j in range(self.fp_lib.n_files):
                 unique_id = "{}_{}".format(round_n, j)
                 job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
@@ -330,6 +333,10 @@ class CSAlgo:
         elif self.docking_method == "manual":
             self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
             new_indices, new_scores = None, None
+        elif self.docking_method == "auto":
+            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
+            smi_file_path = "{}/smi_round_{}.smi".format(self.info_dir, round_n)
+            new_indices, new_scores = self.auto_dock(lib_array_indices, smi_list, round_n, smi_file_path)
         else:
             raise ValueError(f"Docking method {self.docking_method} not yet implemented")
 
@@ -437,19 +444,30 @@ class CSAlgo:
                                       tasks_per_node=self.slurm_tasks_per_node, python_exec=self.python_exec,
                                       slurm_options=self.slurm_options)
             job_id = launcher.submit()
-            launcher.wait()
+            try:
+                launcher.wait()
+            except Exception as e:
+                self.print_verbose(f"First wait() pass failed with exception {e}")
+            ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
+            if not ok:
+                raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
+            # Cleanup only when truly done
+            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
         else:
             self.dump_job_pickles(jobs, round_n)
-            job_array = SlurmJobArray(
-                round_n=round_n,
-                n_jobs=len(jobs),
-                job_folder=self.chaining_log.jobs_folder,
-                python_exec=self.python_exec,
-                slurm_options=self.slurm_options
-            )
+            job_array = SlurmJobArray(round_n=round_n, n_jobs=len(jobs),
+                                      job_folder=self.chaining_log.jobs_folder,
+                                      python_exec=self.python_exec, slurm_options=self.slurm_options)
             job_id = job_array.submit()
-            job_array.wait(job_id)
+            try:
+                job_array.wait(job_id)
+            except Exception as e:
+                self.print_verbose(f"First wait() pass failed with exception {e}")
+            ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
+            if not ok:
+                raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
+            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
 
     def run_sge_array(self, jobs, round_n):
@@ -463,15 +481,18 @@ class CSAlgo:
             Current round number (used in filenames).
         """
         self.dump_job_pickles(jobs, round_n)
-        job_array = SGEJobArray(
-            round_n=round_n,
-            n_jobs=len(jobs),
-            job_folder=self.chaining_log.jobs_folder,
-            python_exec=self.python_exec,
-            sge_options=self.sge_options
-        )
+        job_array = SGEJobArray(round_n=round_n, n_jobs=len(jobs),
+                                job_folder=self.chaining_log.jobs_folder,
+                                python_exec=self.python_exec, sge_options=self.sge_options)
         job_id = job_array.submit()
-        job_array.wait(job_id)
+        try:
+            job_array.wait(job_id)
+        except Exception as e:
+            self.print_verbose(f"First wait() pass failed with exception {e}")
+        ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="sge")
+        if not ok:
+            raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
+        threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
         return job_id
 
     def dump_job_pickles(self, jobs, round_n):
@@ -553,6 +574,47 @@ class CSAlgo:
         absolute_ids = np.concatenate(all_absolute_ids, axis=0)
 
         return lib_array_indices, all_smiles, absolute_ids
+        
+    def auto_dock(self, lib_array_indices, smi_list, round_n, smi_file_path):
+        """Retrieve scores for a batch using precomputed arrays.
+
+        Parameters
+        ----------
+        lib_array_indices : np.ndarray
+            Array of ``(lib_index, array_index)`` pairs to score.
+        smi_list : list[str]
+            SMILES (unused for lookup; kept for interface symmetry).
+        round_n : int
+            Round number for output filenames.
+
+        Returns
+        -------
+        (np.ndarray, np.ndarray)
+            ``(full_indices, scores)`` aligned arrays for the batch.
+
+        Raises
+        ------
+        AssertionError
+            If ``scores_fns`` is missing or misaligned with the library.
+        """
+        self.print_verbose("About to start building")
+        docker = AutoDocking(lib_array_indices, smi_list, self.fp_lib, smi_file_path, round_n, self.dockfiles_path, verbose=self.verbose)
+        docker.build_all()
+        self.print_verbose("Building Done")
+        self.print_verbose("Starting Docking")
+        new_indices = docker.dock_all()
+        self.print_verbose("'Docking' done")
+        new_scores = docker.get_scores_list()
+        # new_indices = np.zeros(len(new_scores), dtype=np.int64)
+
+        # for i, ((lib_index, arr_index), score) in enumerate(zip(lib_array_indices, new_scores)):
+        #     full_id = self.fp_lib.get_full_index(lib_index, arr_index)
+        #     new_indices[i] = full_id
+        with open(f"{self.info_dir}/docked_round_{round_n}.df", 'w') as f:
+            f.write("full_id score\n")
+            for full_id, score in zip(new_indices, new_scores):
+                f.write(f"{full_id} {score}\n")
+        return new_indices, new_scores
 
     def lookup_dock(self, lib_array_indices, smi_list, round_n):
         """Retrieve scores for a batch using precomputed arrays.
@@ -752,16 +814,77 @@ class CSAlgo:
                 return False
         return True
 
-    def _cleanup_round_artifacts(self, round_n, scheduler, array_jobid):
+    def incomplete_job_indices(self, round_n):
+        """Return zero-based file indices j for which {round_n}_{j}.pickle exists and job.completed==False."""
+        missing = []
+        for j in range(self.fp_lib.n_files):
+            p = os.path.join(self.chaining_log.jobs_folder, f"{round_n}_{j}.pickle")
+            if not os.path.exists(p):
+                # If a pickle is missing entirely, treat as incomplete so we re-run it.
+                missing.append(j)
+                continue
+            with open(p, "rb") as fh:
+                job = pickle.load(fh)
+            if not getattr(job, "completed", False):
+                missing.append(j)
+        return missing
+
+    def _submit_subset_array(self, round_n, idxs, scheduler):
+        """Submit a Slurm/SGE array for just the provided zero-based idxs and wait."""
+        if scheduler == "slurm":
+            # Slurm accepts 0-based arrays; we pass --array=<list>
+            arr_spec = _compress_index_list(idxs, one_indexed=False)
+            opts = dict(self.slurm_options)
+            opts["array"] = arr_spec  # override the default range
+            ja = SlurmJobArray(round_n, n_jobs=len(idxs), job_folder=self.chaining_log.jobs_folder,
+                               python_exec=self.python_exec, slurm_options=opts)
+            job_id = ja.submit()
+            try:
+                ja.wait(job_id)
+            except Exception as e:
+                # We don't crash here; we’ll re-check incompletes and possibly retry.
+                self.print_verbose(f"[resubmit error] {e}")
+            return job_id
+
+        elif scheduler == "sge":
+            # SGE is 1-indexed; job script subtracts 1 internally to form pickle name
+            task_spec = _compress_index_list(idxs, one_indexed=True)
+            opts = dict(self.sge_options)
+            opts["t"] = task_spec
+            ja = SGEJobArray(round_n, n_jobs=len(idxs), job_folder=self.chaining_log.jobs_folder,
+                             python_exec=self.python_exec, sge_options=opts)
+            job_id = ja.submit()
+            try:
+                ja.wait(job_id)
+            except Exception as e:
+                self.print_verbose(f"[resubmit error] {e}")
+            return job_id
+        else:
+            raise ValueError(f"Unsupported scheduler for subset submission: {scheduler!r}")
+
+    def _wait_and_resubmit_incomplete(self, round_n, scheduler):
+        """After an array (or nodearray) ends, resubmit only incomplete jobs up to max_reruns."""
+        job_ids = []
+        attempt = 0
+        while True:
+            remain = self.incomplete_job_indices(round_n)
+            if not remain:
+                return True, job_ids
+            attempt += 1
+            if attempt > self.max_reruns:
+                return False, job_ids
+            self.print_verbose(
+                f"[retry {attempt}/{self.max_reruns}] Resubmitting {len(remain)} incomplete SearchJobs for round {round_n}")
+            job_ids.append(self._submit_subset_array(round_n, remain, scheduler))
+
+    def _cleanup_round_artifacts(self, round_n, scheduler):
         """Best-effort deletion of per-round artifacts (pickles + scheduler logs)."""
         if scheduler is None:
             return
-        # first, small sleep to make sure everything is written
         time.sleep(10)
         jf = self.chaining_log.jobs_folder
-        jf = self.chaining_log.jobs_folder
         try:
-            # 1) All pickles for this round (SearchJob + NodeJob)
+            # 1) All pickles for this round
             pickle_patterns = {
                 os.path.join(jf, f"{round_n}_*.pickle"),
                 os.path.join(jf, f"{round_n}_node_*.pickle"),
@@ -769,43 +892,53 @@ class CSAlgo:
             to_delete = set()
             for patt in pickle_patterns:
                 to_delete.update(glob.glob(patt))
-
             for p in to_delete:
                 if os.path.isfile(p):
                     os.remove(p)
 
-            # 2) Scheduler logs
+            # 2) Scheduler logs — delete all for this round, across all job IDs
             if scheduler == "slurm":
-                slurm_patterns = [
-                    # Regular array logs (%x was 'slurm_{round_n}')
-                    os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.out"),
-                    os.path.join(jf, f"slurm_{round_n}-{array_jobid}_*.err"),
-                    # Node array logs (explicit templates in SlurmNodeArray)
-                    os.path.join(jf, f"slurm-node-{array_jobid}_*.out"),
-                    os.path.join(jf, f"slurm-node-{array_jobid}_*.err"),
-                ]
-                for patt in slurm_patterns:
+                for patt in [
+                    os.path.join(jf, f"slurm_{round_n}-*.out"),
+                    os.path.join(jf, f"slurm_{round_n}-*.err"),
+                    os.path.join(jf, f"slurm-node-*.out"),
+                    os.path.join(jf, f"slurm-node-*.err"),
+                ]:
                     for p in glob.glob(patt):
                         if os.path.isfile(p):
                             os.remove(p)
-
             elif scheduler == "sge":
-                sge_patterns = [
+                for patt in [
                     os.path.join(jf, f"sge_{round_n}_*.out"),
                     os.path.join(jf, f"sge_{round_n}_*.err"),
-                ]
-                for patt in sge_patterns:
+                ]:
                     for p in glob.glob(patt):
                         if os.path.isfile(p):
                             os.remove(p)
-
         except Exception as e:
-            # Best effort: never crash the main run; print if verbose
             self.print_verbose(f"[failed cleanup r{round_n}] {e}")
 
 
 def _run_one_job_local(job):
     job.run_local()
+
+
+def _compress_index_list(idxs, one_indexed=False):
+    """Turn [0,1,2,5,7,8] into '0-2,5,7-8' (or 1-indexed for SGE)."""
+    if not idxs:
+        return ""
+    xs = sorted(int(i) + (1 if one_indexed else 0) for i in set(idxs))
+    ranges = []
+    start = prev = xs[0]
+    for v in xs[1:]:
+        if v == prev + 1:
+            prev = v
+            continue
+        ranges.append((start, prev))
+        start = prev = v
+    ranges.append((start, prev))
+    parts = [f"{a}-{b}" if a != b else f"{a}" for a, b in ranges]
+    return ",".join(parts)
 
 
 def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, chunk_size=100_000):
