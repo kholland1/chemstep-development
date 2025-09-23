@@ -6,9 +6,11 @@ def read_param_file(param_file):
                     "hit_pprop",
                     "n_docked_per_round",
                     "max_beacons",
-                    "max_n_rounds"]
+                    "max_n_rounds",
+                    "beacon_diversity_strategy"]
     floats = {"hit_pprop"}
     ints = {"n_docked_per_round", "max_beacons", "max_n_rounds"}
+    strings = {"seed_indices_file", "seed_scores_file", "beacon_diversity_strategy"}
     params_dict = dict()
     for key in ordered_keys:
         params_dict[key] = None
@@ -30,7 +32,11 @@ def read_param_file(param_file):
             params_dict[key] = val
     for key in params_dict:
         if params_dict[key] is None:
-            raise ValueError("Parameter {} not found in file {}".format(key, param_file))
+            # Make beacon_diversity_strategy optional for backward compatibility
+            if key == "beacon_diversity_strategy":
+                params_dict[key] = "maxdiv"
+            else:
+                raise ValueError("Parameter {} not found in file {}".format(key, param_file))
     return CSParams(*[params_dict[key] for key in ordered_keys])
 
 
@@ -46,12 +52,14 @@ class CSParams:
             n_docked_per_round (int): The number of molecules to prioritize, build and dock each round
             max_beacons (int): The maximal number of beacons to use.
             max_n_rounds (int): The maximal number of chaining rounds to perform
+            beacon_diversity_strategy (str): Strategy for beacon selection - "maxdiv", "entropy_bits", or "mutual_info"
     """
-    def __init__(self, seed_indices_file, seed_scores_file, hit_pprop, n_docked_per_round, max_beacons, max_n_rounds):
+    def __init__(self, seed_indices_file, seed_scores_file, hit_pprop, n_docked_per_round, max_beacons, max_n_rounds, beacon_diversity_strategy="maxdiv"):
         self.seed_indices_file = seed_indices_file
         self.seed_scores_file = seed_scores_file
         self.hit_pprop = hit_pprop
         self.n_docked_per_round = n_docked_per_round
         self.max_beacons = max_beacons
         self.max_n_rounds = max_n_rounds
+        self.beacon_diversity_strategy = beacon_diversity_strategy
 
