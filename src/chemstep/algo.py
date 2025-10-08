@@ -451,8 +451,6 @@ class CSAlgo:
             ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
             if not ok:
                 raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-            # Cleanup only when truly done
-            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
         else:
             self.dump_job_pickles(jobs, round_n)
@@ -467,7 +465,6 @@ class CSAlgo:
             ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
             if not ok:
                 raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
 
     def run_sge_array(self, jobs, round_n):
@@ -492,7 +489,6 @@ class CSAlgo:
         ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="sge")
         if not ok:
             raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-        threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
         return job_id
 
     def dump_job_pickles(self, jobs, round_n):
@@ -720,14 +716,34 @@ class CSAlgo:
         raise ValueError("screen_novelty() not yet implemented")
 
     def apply_beacons_diversity(self):
-        """Apply the configured beacon diversity strategy, which for now as always maximal diversity.
+        """Apply the configured beacon diversity strategy.
+
+        Uses the strategy specified in params.beacon_diversity_strategy:
+        - "maxdiv": Greedy max-diversity using Tanimoto distance (default)
+        - "entropy_bits": Maximize fingerprint bit entropy
+        - "mutual_info": Minimize mutual information between selected molecules
 
         Returns
         -------
         np.ndarray
             Fingerprints for the selected beacons.
+
+        Raises
+        ------
+        ValueError
+            If beacon_diversity_strategy is not recognized.
         """
-        return self.apply_beacons_diversity_maxdiv()
+        strategy = getattr(self.params, 'beacon_diversity_strategy', 'maxdiv')
+
+        if strategy == "maxdiv":
+            return self.apply_beacons_diversity_maxdiv()
+        elif strategy == "entropy_bits":
+            return self.apply_beacons_diversity_entropy_bits()
+        elif strategy == "mutual_info":
+            return self.apply_beacons_diversity_mutual_info()
+        else:
+            raise ValueError(f"Unknown beacon diversity strategy: {strategy}. " +
+                           "Valid options are: 'maxdiv', 'entropy_bits', 'mutual_info'")
 
     def load_all_fps_unused_beacons(self):
         """Load fingerprints for all currently unused beacon candidates.
@@ -789,6 +805,154 @@ class CSAlgo:
         self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
         self.current_beacons = kept_beacons
         self.current_beacons_dists = distances
+        return all_fps[selected == 1]
+
+    def apply_beacons_diversity_entropy_bits(self):
+        """Select beacons that maximize entropy of fingerprint bit patterns.
+
+        Greedily selects molecules to maximize the Shannon entropy of
+        fingerprint bit positions across the selected set.
+
+        Returns
+        -------
+        np.ndarray
+            Fingerprints of the selected beacons (rows correspond to the
+            chosen candidates). Also updates ``current_beacons``,
+            ``current_beacons_dists``, and prunes ``unused_beacons`` in‑place.
+        """
+        all_fps = self.load_all_fps_unused_beacons()
+        if len(all_fps) == 0:
+            self.current_beacons = []
+            self.current_beacons_dists = []
+            return np.zeros((0, self.fp_lib.fp_length_bytes), dtype=np.uint8)
+
+        def compute_bit_entropy(fps_subset):
+            """Compute Shannon entropy across fingerprint bit positions."""
+            if len(fps_subset) == 0:
+                return 0.0
+            # Convert to bit matrix (n_molecules x n_bits)
+            bit_matrix = np.unpackbits(fps_subset, axis=1)
+            # Compute probability of bit=1 for each position
+            bit_probs = np.mean(bit_matrix, axis=0)
+            # Avoid log(0) by clipping
+            bit_probs = np.clip(bit_probs, 1e-10, 1-1e-10)
+            # Shannon entropy for each bit position
+            entropies = -bit_probs * np.log2(bit_probs) - (1-bit_probs) * np.log2(1-bit_probs)
+            return np.sum(entropies)
+
+        # Greedy selection maximizing total bit entropy
+        selected_indices = []
+        entropies = []
+
+        for _ in range(min(self.params.max_beacons, len(all_fps))):
+            best_entropy = -1
+            best_idx = -1
+
+            for i in range(len(all_fps)):
+                if i in selected_indices:
+                    continue
+                # Test entropy of current selection + candidate
+                candidate_fps = all_fps[selected_indices + [i]]
+                entropy = compute_bit_entropy(candidate_fps)
+                if entropy > best_entropy:
+                    best_entropy = entropy
+                    best_idx = i
+
+            if best_idx >= 0:
+                selected_indices.append(best_idx)
+                entropies.append(best_entropy)
+                self.print_verbose(f"Selected beacon {self.unused_beacons[best_idx][1]} with score {self.unused_beacons[best_idx][0]:.2f} and entropy {best_entropy:.3f}")
+
+        # Update instance variables
+        selected = np.zeros(len(all_fps), dtype=np.uint8)
+        selected[selected_indices] = 1
+        kept_beacons = [self.unused_beacons[i] for i in selected_indices]
+        self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
+        self.current_beacons = kept_beacons
+        self.current_beacons_dists = entropies
+
+        return all_fps[selected == 1]
+
+    def apply_beacons_diversity_mutual_info(self):
+        """Select beacons minimizing mutual information between selected molecules.
+
+        Greedily selects molecules to minimize pairwise mutual information,
+        reducing redundancy between selected beacons.
+
+        Returns
+        -------
+        np.ndarray
+            Fingerprints of the selected beacons (rows correspond to the
+            chosen candidates). Also updates ``current_beacons``,
+            ``current_beacons_dists``, and prunes ``unused_beacons`` in‑place.
+        """
+        all_fps = self.load_all_fps_unused_beacons()
+        if len(all_fps) == 0:
+            self.current_beacons = []
+            self.current_beacons_dists = []
+            return np.zeros((0, self.fp_lib.fp_length_bytes), dtype=np.uint8)
+
+        def mutual_information(fp1, fp2):
+            """Compute mutual information between two fingerprint bit vectors."""
+            # Convert to bit arrays
+            bits1 = np.unpackbits(fp1)
+            bits2 = np.unpackbits(fp2)
+
+            # Joint probabilities
+            p_00 = np.mean((bits1 == 0) & (bits2 == 0))
+            p_01 = np.mean((bits1 == 0) & (bits2 == 1))
+            p_10 = np.mean((bits1 == 1) & (bits2 == 0))
+            p_11 = np.mean((bits1 == 1) & (bits2 == 1))
+
+            # Marginal probabilities
+            p_1_x = p_10 + p_11
+            p_0_x = 1 - p_1_x
+            p_1_y = p_01 + p_11
+            p_0_y = 1 - p_1_y
+
+            # Mutual information calculation
+            mi = 0.0
+            for p_xy, p_x, p_y in [(p_00, p_0_x, p_0_y), (p_01, p_0_x, p_1_y),
+                                   (p_10, p_1_x, p_0_y), (p_11, p_1_x, p_1_y)]:
+                if p_xy > 1e-10 and p_x > 1e-10 and p_y > 1e-10:
+                    mi += p_xy * np.log2(p_xy / (p_x * p_y))
+
+            return max(0.0, mi)  # Ensure non-negative
+
+        # Start with the molecule that has the best score (first in sorted list)
+        selected_indices = [0] if len(all_fps) > 0 else []
+        mi_sums = [0.0] if len(all_fps) > 0 else []
+
+        # Select remaining molecules minimizing total mutual information
+        for _ in range(1, min(self.params.max_beacons, len(all_fps))):
+            min_mi_sum = float('inf')
+            best_idx = -1
+
+            for i in range(len(all_fps)):
+                if i in selected_indices:
+                    continue
+
+                # Compute total MI with already selected molecules
+                mi_sum = sum(mutual_information(all_fps[i], all_fps[j])
+                           for j in selected_indices)
+
+                if mi_sum < min_mi_sum:
+                    min_mi_sum = mi_sum
+                    best_idx = i
+
+            if best_idx >= 0:
+                selected_indices.append(best_idx)
+                mi_sums.append(min_mi_sum)
+                self.print_verbose(f"Selected beacon {self.unused_beacons[best_idx][1]} with score {self.unused_beacons[best_idx][0]:.2f} and MI sum {min_mi_sum:.3f}")
+
+        # Update instance variables
+        selected = np.zeros(len(all_fps), dtype=np.uint8)
+        selected[selected_indices] = 1
+        kept_beacons = [self.unused_beacons[i] for i in selected_indices]
+        self.unused_beacons = [x for i, x in enumerate(self.unused_beacons) if selected[i] == 0]
+        self.current_beacons = kept_beacons
+        self.current_beacons_dists = mi_sums
+
         return all_fps[selected == 1]
 
     def all_jobs_completed(self, round_n):

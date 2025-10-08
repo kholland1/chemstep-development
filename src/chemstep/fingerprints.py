@@ -1,11 +1,6 @@
-from numba import njit
+from numba import njit, prange
 import numpy as np
 import sys
-
-
-bitsum_lookup = np.zeros(256, dtype=np.float32)
-for ix in range(256):
-    bitsum_lookup[ix] = np.sum(np.unpackbits(np.array([ix], dtype=np.uint8)))
 
 
 @njit
@@ -17,41 +12,45 @@ def get_tanimoto_max(query_fps, database_fps):
     return results
 
 
-@njit
+@njit(parallel=True)
 def get_tanimoto_max_excl(query_fps, database_fps, excl):
-    results = np.full(len(database_fps), -1.0)
-    for i in range(len(database_fps)):
-        if excl[i]:
-            continue
-        dbfp = database_fps[i]
-        results[i] = update_results_maxtani(dbfp, query_fps)
+    n = len(database_fps)
+    results = np.full(n, -1.0)
+    for i in prange(n):
+        if not excl[i]:
+            results[i] = update_results_maxtani(database_fps[i], query_fps)
     return results
 
 
-@njit
+@njit()
 def update_results_maxtani(dbfp, query_fps):
     tmp = np.zeros(len(query_fps))
     for j in range(len(query_fps)):
-        qfp = query_fps[j]
-        tmp[j] = get_tc(dbfp, qfp)
+        tmp[j] = get_tc(dbfp, query_fps[j])
     return np.max(tmp)
 
 
-@njit
-def get_tc(fp1, fp2):
-    denom = bitsum(np.bitwise_or(fp1, fp2))
-    if denom == 0:
-        return 0.0
-    else:
-        return bitsum(np.bitwise_and(fp1, fp2)) / denom
+@njit(inline='always')
+def popcnt64(x):
+    x = x - ((x >> 1) & np.uint64(0x5555555555555555))
+    x = (x & np.uint64(0x3333333333333333)) + ((x >> 2) & np.uint64(0x3333333333333333))
+    x = (x + (x >> 4)) & np.uint64(0x0F0F0F0F0F0F0F0F)
+    x = (x * np.uint64(0x0101010101010101)) >> np.uint64(56)
+    return x
 
+@njit(fastmath=True, inline='always')
+def get_tc(fp1_u64, fp2_u64):
+    inter = 0
+    a_sum = 0
+    b_sum = 0
+    for i in range(fp1_u64.size):
+        A = fp1_u64[i]; B = fp2_u64[i]
+        a_sum += int(popcnt64(A))
+        b_sum += int(popcnt64(B))
+        inter += int(popcnt64(A & B))
+    denom = a_sum + b_sum - inter
+    return 0.0 if denom == 0 else inter / float(denom)
 
-@njit
-def bitsum(a):
-    s = 0.0
-    for elem in a:
-        s += bitsum_lookup[elem]
-    return s
 
 
 def get_fp_from_smiles(smiles, n_bits=1024, packbits=True):
