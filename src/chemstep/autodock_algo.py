@@ -53,7 +53,7 @@ class AutoDocking(DockingAlgorithm):
         env["DOCKFILES"] = str(dockfiles_path)
         env["INPUT_FOLDER"] = str(building_dir)
         env["OUTPUT_FOLDER"] = str(docking_dir)
-        # env['USE_SGE_ARGS'] = "-l h_rt=00:30:00" # TODO: Update this after debugging
+        env['USE_SGE_ARGS'] = "-l h_rt=00:30:00" # TODO: Update this after debugging
 
         # Submit and wait for docking jobs
         result = subprocess.run(
@@ -97,8 +97,8 @@ class AutoDocking(DockingAlgorithm):
         make_building_array_job(
             self.smi_file_path, # input smi file
             f"round_{self.round_n}_building", # output folder
-            400, # bundle size # TODO: Update this after debugging
-            3, # minutes per mol
+            20, # bundle size # TODO: Update this after debugging
+            1.5, # minutes per mol
             None, # building_config_file. Not implemented yet
             f"round_{self.round_n}_building.sh", # array_job_name
             True, # skip_name_check

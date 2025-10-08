@@ -451,8 +451,6 @@ class CSAlgo:
             ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
             if not ok:
                 raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-            # Cleanup only when truly done
-            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
         else:
             self.dump_job_pickles(jobs, round_n)
@@ -467,7 +465,6 @@ class CSAlgo:
             ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="slurm")
             if not ok:
                 raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-            threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
             return job_id
 
     def run_sge_array(self, jobs, round_n):
@@ -492,7 +489,6 @@ class CSAlgo:
         ok, extra_ids = self._wait_and_resubmit_incomplete(round_n, scheduler="sge")
         if not ok:
             raise RuntimeError(f"After retries, some SearchJobs are still incomplete for round {round_n}")
-        threading.Thread(target=self._cleanup_round_artifacts, args=(round_n, self.scheduler), daemon=True).start()
         return job_id
 
     def dump_job_pickles(self, jobs, round_n):
