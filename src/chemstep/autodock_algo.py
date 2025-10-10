@@ -22,7 +22,7 @@ from chemstep.id_helper import char_to_int64
 
 class AutoDocking(DockingAlgorithm):
 
-    def __init__(self, lib_array_indices, smi_list, fp_lib, smi_file_path, round_n, dockfiles_path, verbose=False):
+    def __init__(self, lib_array_indices, smi_list, fp_lib, smi_file_path, round_n, dockfiles_path, algo_params, verbose=False):
         super().__init__(lib_array_indices, smi_list)
         assert isinstance(fp_lib, FpLibrary)
         self.lib_arr_indices = lib_array_indices
@@ -30,6 +30,9 @@ class AutoDocking(DockingAlgorithm):
         self.smi_file_path = smi_file_path
         self.round_n = round_n
         self.dockfiles_path = dockfiles_path
+        self.bundle_size = algo_params.bundle_size
+        self.building_minutes_per_mol = float(getattr(algo_params, "builing_minutes_per_mol", 3))
+        self.docking_job_time = getattr(algo_params, "docking_job_time", "8:00:00")
 
     def dock_all(self):  # TODO: make parallel (low priority)
 
@@ -53,7 +56,7 @@ class AutoDocking(DockingAlgorithm):
         env["DOCKFILES"] = str(dockfiles_path)
         env["INPUT_FOLDER"] = str(building_dir)
         env["OUTPUT_FOLDER"] = str(docking_dir)
-        env['USE_SGE_ARGS'] = "-l h_rt=00:30:00" # TODO: Update this after debugging
+        env['USE_SGE_ARGS'] = f"-l h_rt={self.docking_job_time}"
 
         # Submit and wait for docking jobs
         result = subprocess.run(
@@ -97,8 +100,8 @@ class AutoDocking(DockingAlgorithm):
         make_building_array_job(
             self.smi_file_path, # input smi file
             f"round_{self.round_n}_building", # output folder
-            20, # bundle size # TODO: Update this after debugging
-            1.5, # minutes per mol
+            self.bundle_size, # bundle size
+            self.building_minutes_per_mol, # minutes per mol
             None, # building_config_file. Not implemented yet
             f"round_{self.round_n}_building.sh", # array_job_name
             True, # skip_name_check

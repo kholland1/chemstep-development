@@ -7,10 +7,13 @@ def read_param_file(param_file):
                     "n_docked_per_round",
                     "max_beacons",
                     "max_n_rounds",
-                    "beacon_diversity_strategy"]
-    floats = {"hit_pprop"}
-    ints = {"n_docked_per_round", "max_beacons", "max_n_rounds"}
-    strings = {"seed_indices_file", "seed_scores_file", "beacon_diversity_strategy"}
+                    "bundle_size",
+                    "beacon_diversity_strategy",
+                    "building_minutes_per_mol",
+                    "docking_job_time"]
+    floats = {"hit_pprop","building_minutes_per_mol"}
+    ints = {"n_docked_per_round", "max_beacons", "max_n_rounds", "bundle_size"}
+    strings = {"seed_indices_file", "seed_scores_file", "beacon_diversity_strategy","docking_job_time"}
     params_dict = dict()
     for key in ordered_keys:
         params_dict[key] = None
@@ -35,6 +38,10 @@ def read_param_file(param_file):
             # Make beacon_diversity_strategy optional for backward compatibility
             if key == "beacon_diversity_strategy":
                 params_dict[key] = "maxdiv"
+            elif key == "building_minutes_per_mol":
+                params_dict[key] = 3
+            elif key == "docking_job_time":
+                params_dict[key] = "8:00:00"
             else:
                 raise ValueError("Parameter {} not found in file {}".format(key, param_file))
     return CSParams(*[params_dict[key] for key in ordered_keys])
@@ -54,7 +61,7 @@ class CSParams:
             max_n_rounds (int): The maximal number of chaining rounds to perform
             beacon_diversity_strategy (str): Strategy for beacon selection - "maxdiv", "entropy_bits", or "mutual_info"
     """
-    def __init__(self, seed_indices_file, seed_scores_file, hit_pprop, n_docked_per_round, max_beacons, max_n_rounds, beacon_diversity_strategy="maxdiv"):
+    def __init__(self, seed_indices_file, seed_scores_file, hit_pprop, n_docked_per_round, max_beacons, max_n_rounds, bundle_size, beacon_diversity_strategy="maxdiv",building_minutes_per_mol=3,docking_job_time="8:00:00"):
         self.seed_indices_file = seed_indices_file
         self.seed_scores_file = seed_scores_file
         self.hit_pprop = hit_pprop
@@ -62,4 +69,7 @@ class CSParams:
         self.max_beacons = max_beacons
         self.max_n_rounds = max_n_rounds
         self.beacon_diversity_strategy = beacon_diversity_strategy
+        self.bundle_size = bundle_size
+        self.building_minutes_per_mol=building_minutes_per_mol
+        self.docking_job_time=docking_job_time
 
