@@ -17,7 +17,7 @@ setuptools.setup(
     package_dir={'': 'src'},
     package_data={},
     test_suite='tests',
-    install_requires=['numpy>=1.20', 'numba>=0.54'],
+    install_requires=['numpy>=1.20', 'numba>=0.54', 'tqdm'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
