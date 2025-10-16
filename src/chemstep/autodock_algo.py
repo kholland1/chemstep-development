@@ -107,7 +107,8 @@ class AutoDocking(DockingAlgorithm):
             True, # skip_name_check
             'sge', # scheduler
             'apptainer', # container_software
-            '/wynton/group/bks/soft/DOCK-3.8.5/building_pipeline.sif'# container path or name
+            '/wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/building_no_strain.sif'
+            # '/wynton/group/bks/soft/DOCK-3.8.5/building_pipeline.sif'# container path or name
         )
 
         # submit building
