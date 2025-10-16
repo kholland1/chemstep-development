@@ -160,7 +160,7 @@ class CSAlgo:
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
-                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None):
+                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -235,6 +235,8 @@ class CSAlgo:
                                           self.fp_lib.fp_length_bytes), dtype=np.uint8)
         self.used_beacons_count = 0
         self.dockfiles_path = dockfiles_path
+        self.mintd_search = mintd_search
+        self.ignore_seeds = ignore_seeds
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -289,7 +291,13 @@ class CSAlgo:
             beacon_scores = [b[0] for b in self.current_beacons]
             self.book.log_round(round_n-1, len(new_indices), n_hits, self.current_mintd_thresh,
                                 beacon_ids, beacon_scores, self.current_beacons_dists)
-        beacons = self.get_beacons(new_indices, new_scores)
+        
+        # If its round 1, we want to pick beacons from the seeds but then have the option to get 
+        # rid of the rest of the seeds and not choose beacons from them later 
+        if round_n == 1:
+            beacons = self.get_beacons(new_indices, new_scores, is_round_1=True)
+        else:
+            beacons = self.get_beacons(new_indices, new_scores, is_round_1=False)
         t0 = time.time()
         if len(beacons) != 0:
             self.print_verbose(f"Starting round {round_n} with {len(beacons)} beacons at time {time.asctime()}")
@@ -544,6 +552,8 @@ class CSAlgo:
         mintd_bin_thresh = None
         count = 0
         for b in range(1001):
+            if (b + 1) / 1000 < self.mintd_search:
+                continue
             count += mintd_distrib[b]
             if count >= target_n:
                 mintd_bin_thresh = b
@@ -552,7 +562,7 @@ class CSAlgo:
         self.current_mintd_thresh = (mintd_bin_thresh + 0.5) / 1000
         self.print_verbose(f"minTD threshold for round {round_n} set to {self.current_mintd_thresh:.3f}")
 
-        args = [(i, mintd_bin_thresh, self.fp_lib, self.chaining_log) for i in range(self.fp_lib.n_files)]
+        args = [(i, mintd_bin_thresh, self.fp_lib, self.chaining_log, self.mintd_search) for i in range(self.fp_lib.n_files)]
 
         with Pool(self.n_proc) as pool:
             results = pool.starmap(_process_single_lib_chunked, args)
@@ -684,7 +694,7 @@ class CSAlgo:
         with Pool(self.n_proc) as p:
             p.starmap(_add_exclusions_one_index, args)
 
-    def get_beacons(self, new_indices, new_scores):
+    def get_beacons(self, new_indices, new_scores, is_round_1=False):
         """Select a maximally diverse set of beacons from latest hits (max-min Tanimoto distance to previous beacons).
 
         Parameters
@@ -710,6 +720,11 @@ class CSAlgo:
         self.unused_beacons.sort()  # minimum score is best
 
         selected_fps = self.apply_beacons_diversity()
+
+        # If it's round 1 and we want to ignore seeds, then we remove the remaining seeds
+        # from the unused beacons so they aren't picked in later rounds
+        if is_round_1 and self.ignore_seeds:
+            self.unused_beacons = []
 
         return selected_fps
 
@@ -1106,7 +1121,7 @@ def _compress_index_list(idxs, one_indexed=False):
     return ",".join(parts)
 
 
-def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, chunk_size=100_000):
+def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, mintd_search, chunk_size=100_000):
     mintd_path = chaining_log.get_filename(chaining_log.mintd_prefix, chaining_log.get_suffix(lib_index))
     excl_path = chaining_log.get_filename(chaining_log.exclusion_prefix, chaining_log.get_suffix(lib_index))
     ids_path = fp_lib.id_files[lib_index]
@@ -1127,7 +1142,7 @@ def _process_single_lib_chunked(lib_index, bin_thresh, fp_lib, chaining_log, chu
         chunk_excls = np.array(exclusions[start:end], dtype=np.uint8, copy=True)
 
         for i, (mintd_bin, excl) in enumerate(zip(chunk_bins, chunk_excls)):
-            if not excl and mintd_bin <= bin_thresh:
+            if not excl and mintd_bin <= bin_thresh and mintd_bin > mintd_search:
                 abs_index = start + i
                 lib_array_indices.append((lib_index, abs_index))
                 selected_indices.append(abs_index)
