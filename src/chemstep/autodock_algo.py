@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import glob
 import time
+import sqlite3
 
 from chemstep.id_helper import char_to_int64
 
@@ -34,7 +35,7 @@ class AutoDocking(DockingAlgorithm):
         self.building_minutes_per_mol = float(getattr(algo_params, "builing_minutes_per_mol", 3))
         self.docking_job_time = getattr(algo_params, "docking_job_time", "8:00:00")
 
-    def dock_all(self):  # TODO: make parallel (low priority)
+    def dock_all(self, indices_skipped=None, score_db=None):  # TODO: make parallel (low priority)
 
         cwd = Path.cwd()
         building_dir = (cwd / f"round_{self.round_n}_building").resolve()
@@ -71,9 +72,19 @@ class AutoDocking(DockingAlgorithm):
         job_id = last_line.split()[2].split(".")[0]
         self.wait_sge(job_id)
 
-        # Get the scores
+        # Get any precomputed scores
+        precomputed_scores = {}
+        if score_db:
+            conn = sqlite3.connect(score_db)
+            cur = conn.cursor()
+            for full_index in indices_skipped:
+                cur.execute("SELECT zid, score FROM scored_indices WHERE full_index = ?", (full_index,))
+                zid, score = cur.fetchone()
+                precomputed_scores[zid] = score
+
+        # Get any new score file and combine into the scores_round_*.txt
         outdock_filenames = glob.glob(f'{env["OUTPUT_FOLDER"]}/*/*/OUTDOCK.*')
-        self.write_scores_df(outdock_filenames, f'scores_round_{self.round_n}.txt')
+        self.write_scores_df(outdock_filenames, f'scores_round_{self.round_n}.txt', precomputed_scores)
 
         # Convert to scores and indices npy. 
         with open(f'scores_round_{self.round_n}.txt', 'r') as f:
@@ -84,13 +95,19 @@ class AutoDocking(DockingAlgorithm):
 
         for i, line in enumerate(lines):
             lib_id, score = line.strip().split()
-            lib_id = lib_id[3:]
-            scores[i] = float(score)
-            indices[i] = char_to_int64(lib_id)
+            lib_id_trunc = lib_id[3:]
+            full_index = char_to_int64(lib_id_trunc)
+            score = float(score)
+            # Insert scores into the database
+            if score_db and score != 100:
+                cur.execute("INSERT INTO scored_indices (zid, score, full_index) VALUES (?,?,?)", (lib_id, score, full_index))
+            scores[i] = score
+            indices[i] = full_index
 
         np.save(f'scores_round_{self.round_n}.npy', scores)
         np.save(f'indices_round_{self.round_n}.npy', indices)
-
+        if score_db:
+            conn.close()
         self.scores_list = scores
         return indices
 
@@ -200,11 +217,15 @@ class AutoDocking(DockingAlgorithm):
         return data_dict
 
 
-    def write_scores_df(self, outdocks_list, outname):
+    def write_scores_df(self, outdocks_list, outname, precomputed_scores={}):
         dd = dict()
         for od in outdocks_list:
             d = self.get_outdock_score_dict(od)
             self.fuse_data_dicts(dd, d)
+
+        # Add any precomputed scores from the db
+        self.fuse_data_dicts(dd, precomputed_scores)
+
         with open(outname, 'w') as f:
             for zid in dd:
                 f.write('{} {}\n'.format(zid, dd[zid]))

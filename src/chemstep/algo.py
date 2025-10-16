@@ -17,6 +17,7 @@ from chemstep.bookkeeper import Bookkeeper
 import threading
 import glob
 import time
+import sqlite3
 from chemstep.autodock_algo import AutoDocking
 
 def load_from_pickle(fn):
@@ -160,7 +161,8 @@ class CSAlgo:
     def __init__(self, fp_lib, chemstep_params, output_directory, n_proc, use_pickle=True,
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
-                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False):
+                 scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False,
+                 score_db=None):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -237,6 +239,8 @@ class CSAlgo:
         self.dockfiles_path = dockfiles_path
         self.mintd_search = mintd_search
         self.ignore_seeds = ignore_seeds
+        self.score_db = score_db
+        self.to_skip_building = None
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -342,9 +346,9 @@ class CSAlgo:
             self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
             new_indices, new_scores = None, None
         elif self.docking_method == "auto":
-            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
+            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids, skip_scored=True)
             smi_file_path = "{}/smi_round_{}.smi".format(self.info_dir, round_n)
-            new_indices, new_scores = self.auto_dock(lib_array_indices, smi_list, round_n, smi_file_path)
+            new_indices, new_scores = self.auto_dock(lib_array_indices, smi_list, round_n, smi_file_path, skip_scored=True)
         else:
             raise ValueError(f"Docking method {self.docking_method} not yet implemented")
 
@@ -354,7 +358,7 @@ class CSAlgo:
         self.print_verbose(f"Round {round_n} complete at time {time.asctime()} (took {time.time() - t0:.1f} s)")
         return new_indices, new_scores
 
-    def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids):
+    def write_smi_file(self, smi_list, lib_array_indices, round_n, absolute_ids, skip_scored=False):
         """Write the SMI file and an accompanying absolute‑ID list for a round.
 
         Creates two files in ``info_dir``:
@@ -372,13 +376,31 @@ class CSAlgo:
         absolute_ids : np.ndarray
             Aligned absolute IDs (typically ZINC ints).
         """
+
+        if skip_scored:
+            self.to_skip_building = set()
+            if not self.score_db or not os.path.exists(self.score_db):
+                raise ValueError("Skipping already scored molecules requires a score_db")
+            conn = sqlite3.connect(self.score_db)
+            cur = conn.cursor()
+
         abs_out = open(f'{self.info_dir}/absolute_ids_round_{round_n}.txt', 'w')
         with open("{}/smi_round_{}.smi".format(self.info_dir, round_n), 'w') as f:
             for smi, lib_arr, abs_id in zip(smi_list, lib_array_indices, absolute_ids):
                 full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
+
+                # If we want to skip molecules already in the scored database then look for the scores
+                if skip_scored:
+                    cur.execute("SELECT 1 FROM scored_indices WHERE full_index = ? LIMIT 1", (full_index,))
+                    if cur.fetchone() is not None: # If we find a score then move to next molecule
+                        self.to_skip_building.add(full_index)
+                        continue
+
                 char_name = int64_to_char(full_index, prefix=self.smi_id_prefix)
                 f.write(f'{smi} {char_name}\n')
                 abs_out.write(f'{abs_id}\n')
+
+        conn.close()
         abs_out.close()
 
     def seed(self, score_thresh=None):
@@ -581,7 +603,7 @@ class CSAlgo:
 
         return lib_array_indices, all_smiles, absolute_ids
         
-    def auto_dock(self, lib_array_indices, smi_list, round_n, smi_file_path):
+    def auto_dock(self, lib_array_indices, smi_list, round_n, smi_file_path, skip_scored=False):
         """Retrieve scores for a batch using precomputed arrays.
 
         Parameters
@@ -608,15 +630,17 @@ class CSAlgo:
         docker = AutoDocking(lib_array_indices, smi_list, self.fp_lib, smi_file_path, round_n, self.dockfiles_path, self.params, verbose=self.verbose)
         docker.build_all()
         self.print_verbose("Building Done")
+
         self.print_verbose("Starting Docking")
-        new_indices = docker.dock_all()
+        # When writing the smiles for building, we skip ones which already had scores in the database
+        # Now when we go to dock, we also need to pull the scores already calculated
+        if skip_scored:
+            new_indices = docker.dock_all(self.to_skip_building, self.score_db)
+        else:
+            new_indices = docker.dock_all(None, None)
         self.print_verbose("'Docking' done")
         new_scores = docker.get_scores_list()
-        # new_indices = np.zeros(len(new_scores), dtype=np.int64)
 
-        # for i, ((lib_index, arr_index), score) in enumerate(zip(lib_array_indices, new_scores)):
-        #     full_id = self.fp_lib.get_full_index(lib_index, arr_index)
-        #     new_indices[i] = full_id
         with open(f"{self.info_dir}/docked_round_{round_n}.df", 'w') as f:
             f.write("full_id score\n")
             for full_id, score in zip(new_indices, new_scores):
