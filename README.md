@@ -43,24 +43,25 @@
 4. Make code changes to your branch. Make sure to commit often when you make changes!
 
    `git add .`
+   
    `git commit -m "Added minTD threshold to SearchJob"`
 
 
-5. Create a python environment for your modified version of ChemSTEP in your base directory:
+6. Create a python environment for your modified version of ChemSTEP in your base directory:
    
     `python3 -m venv <name_of_new_environment>` 
 
 
-6. Activate your new envionment:
+7. Activate your new envionment:
    
     `source /wynton/group/bks/work/chemstep_dev/<your_directory>/<name_of_change_applied>/<name_of_new_environment>/bin/activate`
 
-7. Install your modified version of ChemSTEP. In your chemstep branch run:
+8. Install your modified version of ChemSTEP. In your chemstep branch run:
 
     `pip install .`
 
 
-8. Make a working directory on the same level as the venv:
+9. Make a working directory on the same level as the venv:
 
     `mkdir chemstep_run`
     
@@ -110,6 +111,7 @@
 
 12. When you are done making changes and everything looks good, make sure to push your branch changes back to github!
     `cd <your-chemstep-dev-folder>`
+    
     `git push`
 
 **helpful SGE commands:**
@@ -124,17 +126,20 @@
 
 1. First copy the following files into your chemstep folder
    `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/mor_13M_indices_round_0.npy <your-chemstep-run-folder>`
+   
    `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/scores_round_0.txt <your-chemstep-run-folder>`
    
-2. Make a plotting directory in your chemstep folder and copy the plotting script into it
+3. Make a plotting directory in your chemstep folder and copy the plotting script into it
    `mkdir <your-chemstep-run-folder>/plotting`
+   
    `cp /wynton/group/bks/work/chemstep_dev/scripts/chemstep_plots_array.sh <your-chemstep-run-folder>/plotting`
 
-3. Move into the plotting folder and launch the plotting job
+5. Move into the plotting folder and launch the plotting job
    `cd <your-chemstep-run-folder>/plotting`
+   
    `qsub chemstep_plots_array.sh`
 
-4. Upload plots back into GitHub Issue comment section!
+7. Upload plots back into GitHub Issue comment section!
 
 
 **notes**
