@@ -8,10 +8,10 @@
 
 
 
-2. Make edits as needed. Most changes will likely take place in `algo.py` or `search_job.py`.
+2. Make edits to the code as needed. Most changes will likely take place in `algo.py` or `search_job.py`. Ideally your changes should be linked to a parameter passed to the main CSAlgo object so that we can try multiple different values. The default behavior if your new parameter is not passed should always be to run the algorithm as it currently exists.
 
   
-3. Track changes you make in the comments section of the Issue. 
+3. Track major changes you make in the comments section of the Issue.
 
 
 **Running ChemSTEP on Wynton**
@@ -23,48 +23,53 @@
      <img width="303" height="33" alt="Screenshot 2025-10-17 at 3 46 10 PM" src="https://github.com/user-attachments/assets/e64df8cb-34b9-48fd-9aa9-319106b39354" />
 
 
-     `cd your_directory`
+     `cd <your_directory>`
     
 2. Make a directory for any major change applied (Issue):
 
-    `mkdir name_of_change_applied`
+    `mkdir <name_of_change_applied>`
    
 
    
     <img width="352" height="70" alt="Screenshot 2025-10-17 at 3 47 44 PM" src="https://github.com/user-attachments/assets/1dc23f10-dbeb-465b-8d13-2a177408559e" />
 
 
-     `cd name_of_change_applied`
+     `cd <name_of_change_applied>`
+
+3. Pull github branch
+
+    `git clone -b <branch-name> --single-branch https://github.com/bwhall61/chemstep-development.git`
+
+4. Make code changes to your branch. Make sure to commit often when you make changes!
+
+   `git add .`
+   `git commit -m "Added minTD threshold to SearchJob"`
 
 
-3. Create a virtual python environment for your ChemSTEP version in your base directory:
+5. Create a python environment for your modified version of ChemSTEP in your base directory:
    
-    `python -m venv name_of_new_environment` 
+    `python3 -m venv <name_of_new_environment>` 
 
 
-4. Source new virtual envionment:
+6. Activate your new envionment:
    
-    `source /wynton/group/bks/work/chemstep_dev/your/venv/bin/activate`
+    `source /wynton/group/bks/work/chemstep_dev/<your_directory>/<name_of_change_applied>/<name_of_new_environment>/bin/activate`
+
+7. Install your modified version of ChemSTEP. In your chemstep branch run:
+
+    `pip install .`
 
 
+8. Make a working directory on the same level as the venv:
 
-5. Pull code branch with changes:
-   
-    ` ask brendan what this command is`
-
-
-
-6. Make a working directory on the same level as the venv:
-
-    `mkdir chemstep`
+    `mkdir chemstep_run`
     
 
    
     <img width="385" height="87" alt="Screenshot 2025-10-17 at 3 48 09 PM" src="https://github.com/user-attachments/assets/be97abf2-e8e3-4007-a57a-a3e35ea49ac8" />
 
 
-    `cd chemstep`
-
+    `cd chemstep_run`
 
 
 7. Copy in necessary files to the working chemstep directory: 
@@ -76,9 +81,10 @@
     `cp /wynton/group/bks/work/chemstep_dev/scripts/launch_chemstep_as_job.sh .`
    
 
+8. Update `launch_chemstep_as_job.sh` and `run_chemstep.py`
 
-8. Make any edits necessary within `run_chemstep.py`. ** if changes were made to `search_jobs.py` you need to update the `python_exec=/path`
-    
+   In `launch_chemstep_as_job.sh` update <path-to-your-enviornment> with the path to your environment.
+   In `run_chemstep.py` update <path-to-your-environment> with the path to your environment. Also add any additional parameters needed by your changes to the CSAlgo object.
 
 **some things that should NOT change:**
 
@@ -96,12 +102,15 @@
 
       track_beacon_orig=True
       
-
-9. Edit `launch_chemstep_as_job.sh` to call the virtual environment created in step 3.
-
 10. Submit job to scheduler:
 
-    `qsub launch_chemstep_as_job.sh` 
+    `qsub launch_chemstep_as_job.sh`
+
+11. Wait for the algorithm to run for 15-20 rounds. You can look in your chemstep folder to see how many rounds have been run. After you have many rounds, delete your chemstep job to stop it from running (see SGE commands below) 
+
+12. When you are done making changes and everything looks good, make sure to push your branch changes back to github!
+    `cd <your-chemstep-dev-folder>`
+    `git push`
 
 **helpful SGE commands:**
 
@@ -113,9 +122,19 @@
 
 **Plotting**
 
-1. 
+1. First copy the following files into your chemstep folder
+   `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/mor_13M_indices_round_0.npy <your-chemstep-run-folder>`
+   `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/scores_round_0.txt <your-chemstep-run-folder>`
+   
+2. Make a plotting directory in your chemstep folder and copy the plotting script into it
+   `mkdir <your-chemstep-run-folder>/plotting`
+   `cp /wynton/group/bks/work/chemstep_dev/scripts/chemstep_plots_array.sh <your-chemstep-run-folder>/plotting`
 
-2. Upload plots back into GitHub Issue comment section.
+3. Move into the plotting folder and launch the plotting job
+   `cd <your-chemstep-run-folder>/plotting`
+   `qsub chemstep_plots_array.sh`
+
+4. Upload plots back into GitHub Issue comment section!
 
 
 **notes**
@@ -132,7 +151,7 @@
 
 
 
-   ChainingLog sub-jobs: once beacons are assigned, ChemSTEP will launch a series of sub-jobs that calculate the Tanimoto distances of every molecule remaining in the library to the       assigned beacons. Calculated distances to the NEAREST beacon (minimum-minimum Td) are updated in the mintddistrib_*.npy files within the /output directory
+   ChainingLog sub-jobs: once beacons are assigned, ChemSTEP will launch a series of sub-jobs that calculate the Tanimoto distances of every molecule remaining in the library to the assigned beacons. Calculated distances to the NEAREST beacon (minimum-minimum Td) are updated in the mintds_*.npy files within the /output directory
 
 
    
