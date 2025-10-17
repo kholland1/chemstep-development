@@ -54,7 +54,7 @@
 
 7. Activate your new envionment:
    
-    `source /wynton/group/bks/work/chemstep_dev/<your_directory>/<name_of_change_applied>/<name_of_new_environment>/bin/activate`
+    `source <name_of_new_environment>/bin/activate`
 
 8. Install your modified version of ChemSTEP. In your chemstep branch run:
 
