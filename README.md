@@ -106,13 +106,13 @@
 
       track_beacon_orig=True
       
-10. Submit job to scheduler:
+11. Submit job to scheduler:
 
     `qsub launch_chemstep_as_job.sh`
 
-11. After submission, also `git push` your changes to github and let Brendan know so he can look over your code while it's running.
+12. After submission, also `git push` your changes to github and let Brendan know so he can look over your code while it's running.
 
-12. Wait for the algorithm to run for 15-20 rounds. You can look in your chemstep folder to see how many rounds have been run. After you have many rounds, delete your chemstep job to stop it from running (see SGE commands below) 
+13. Wait for the algorithm to run for 15-20 rounds. You can look in your chemstep folder to see how many rounds have been run. After you have many rounds, delete your chemstep job to stop it from running (see SGE commands below) 
 
 
 
