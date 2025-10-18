@@ -24,8 +24,10 @@
 
 
      `cd <your_directory>`
+
     
 2. Make a directory for any major change applied (Issue):
+   
 
     `mkdir <name_of_change_applied>`
    
@@ -47,21 +49,21 @@
    `git commit -m "Added minTD threshold to SearchJob"`
 
 
-6. Create a python environment for your modified version of ChemSTEP in your base directory:
+5. Create a python environment for your modified version of ChemSTEP in your base directory:
    
     `python3 -m venv <name_of_new_environment>` 
 
 
-7. Activate your new envionment:
+6. Activate your new envionment:
    
     `source <name_of_new_environment>/bin/activate`
 
-8. Install your modified version of ChemSTEP. In your chemstep branch run:
+7. Install your modified version of ChemSTEP. In your chemstep branch run:
 
     `pip install .`
 
 
-9. Make a working directory on the same level as the venv:
+8. Make a working directory on the same level as the venv:
 
     `mkdir chemstep_run`
     
@@ -73,7 +75,7 @@
     `cd chemstep_run`
 
 
-7. Copy in necessary files to the working chemstep directory: 
+9. Copy in necessary files to the working chemstep directory: 
 
     `cp /wynton/group/bks/work/chemstep_dev/scripts/params.txt .`
 
@@ -82,9 +84,10 @@
     `cp /wynton/group/bks/work/chemstep_dev/scripts/launch_chemstep_as_job.sh .`
    
 
-8. Update `launch_chemstep_as_job.sh` and `run_chemstep.py`
+10. Update `launch_chemstep_as_job.sh` and `run_chemstep.py`
 
    In `launch_chemstep_as_job.sh` update <path-to-your-enviornment> with the path to your environment.
+   
    In `run_chemstep.py` update <path-to-your-environment> with the path to your environment. Also add any additional parameters needed by your changes to the CSAlgo object.
 
 **some things that should NOT change:**
@@ -107,12 +110,11 @@
 
     `qsub launch_chemstep_as_job.sh`
 
-11. Wait for the algorithm to run for 15-20 rounds. You can look in your chemstep folder to see how many rounds have been run. After you have many rounds, delete your chemstep job to stop it from running (see SGE commands below) 
+11. After submission, also `git push` your changes to github and let Brendan know so he can look over your code while it's running.
 
-12. When you are done making changes and everything looks good, make sure to push your branch changes back to github!
-    `cd <your-chemstep-dev-folder>`
-    
-    `git push`
+12. Wait for the algorithm to run for 15-20 rounds. You can look in your chemstep folder to see how many rounds have been run. After you have many rounds, delete your chemstep job to stop it from running (see SGE commands below) 
+
+
 
 **helpful SGE commands:**
 
@@ -129,17 +131,22 @@
    
    `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/scores_round_0.txt <your-chemstep-run-folder>`
    
-3. Make a plotting directory in your chemstep folder and copy the plotting script into it
+2. Make a plotting directory in your chemstep folder and copy the plotting script into it
+
    `mkdir <your-chemstep-run-folder>/plotting`
+   
    
    `cp /wynton/group/bks/work/chemstep_dev/scripts/chemstep_plots_array.sh <your-chemstep-run-folder>/plotting`
 
-5. Move into the plotting folder and launch the plotting job
+3. Move into the plotting folder and launch the plotting job
+
+   
    `cd <your-chemstep-run-folder>/plotting`
    
    `qsub chemstep_plots_array.sh`
+  
 
-7. Upload plots back into GitHub Issue comment section!
+4. Upload plots back into GitHub Issue comment section!
 
 
 **notes**
