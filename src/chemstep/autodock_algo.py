@@ -107,6 +107,7 @@ class AutoDocking(DockingAlgorithm):
         np.save(f'scores_round_{self.round_n}.npy', scores)
         np.save(f'indices_round_{self.round_n}.npy', indices)
         if score_db:
+            conn.commit()
             conn.close()
         self.scores_list = scores
         return indices

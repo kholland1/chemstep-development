@@ -386,23 +386,28 @@ class CSAlgo:
             cur = conn.cursor()
 
         abs_out = open(f'{self.info_dir}/absolute_ids_round_{round_n}.txt', 'w')
-        with open("{}/smi_round_{}.smi".format(self.info_dir, round_n), 'w') as f:
+        abs_out_fe = open(f'{self.info_dir}/absolute_ids_round_{round_n}_already_scored.txt', 'w')
+        with open("{}/smi_round_{}.smi".format(self.info_dir, round_n), 'w') as f, open("{}/smi_round_{}_already_scored.smi".format(self.info_dir, round_n),'w') as fe:
             for smi, lib_arr, abs_id in zip(smi_list, lib_array_indices, absolute_ids):
                 full_index = self.fp_lib.get_full_index(lib_arr[0], lib_arr[1])
+
+                char_name = int64_to_char(full_index, prefix=self.smi_id_prefix)
 
                 # If we want to skip molecules already in the scored database then look for the scores
                 if skip_scored:
                     cur.execute("SELECT 1 FROM scored_indices WHERE full_index = ? LIMIT 1", (full_index,))
-                    if cur.fetchone() is not None: # If we find a score then move to next molecule
+                    if cur.fetchone() is not None: # If we find a score then move to next molecule (write retrieved smi to new file)
+                        fe.write(f'{smi} {char_name}\n')
+                        abs_out_fe.write(f'{abs_id}\n')
                         self.to_skip_building.add(full_index)
                         continue
 
-                char_name = int64_to_char(full_index, prefix=self.smi_id_prefix)
                 f.write(f'{smi} {char_name}\n')
                 abs_out.write(f'{abs_id}\n')
 
         conn.close()
         abs_out.close()
+        abs_out_fe.close()
 
     def seed(self, score_thresh=None):
         """Initialize from the seed set and compute the hit threshold.
