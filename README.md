@@ -146,7 +146,7 @@
    `qsub chemstep_plots_array.sh`
   
 
-4. Upload plots back into GitHub Issue comment section!
+4. Upload plots back into GitHub Issue comment section! (you can see the Issue "Set minTD for prioritization rounds" for an example)
 
 
 **notes**
