@@ -2,7 +2,7 @@
 
 
 **GitHub instructions**
-1. Ideas for changes are listed in Issues. Individually or as a team choose an Issue to tackle, and assign it to yourself. Create your own branch of the code based off of the main.
+1. Ideas for changes are listed in Projects/Chemstep algorithm exploration. Individually or as a team choose an Issue to tackle, and move it into "In progress". Click into the Issue itself and assign it to yourself. Create your own branch of the code based off of the main.
 
 <img width="327" height="140" alt="Screenshot 2025-10-17 at 12 07 26 PM" src="https://github.com/user-attachments/assets/c5bab9a4-bc10-44ff-81bf-f5f194751109" />
 
