@@ -162,7 +162,7 @@ class CSAlgo:
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
                  scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False,
-                 score_db=None):
+                 score_db=None, track_beacon_orig=False):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -224,9 +224,9 @@ class CSAlgo:
         self.sge_options = sge_options
         self.print_verbose("about to setup ChainingLog")
         if skip_setup:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc, write_empty_files=False)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc, write_empty_files=False, track_beacon_orig=track_beacon_orig)
         else:
-            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc)
+            self.chaining_log = ChainingLog(self.fp_lib, output_directory, self.n_proc, track_beacon_orig=track_beacon_orig)
         self.print_verbose("ChainingLog set")
         self.score_thresh = None
         self.unused_beacons = []
@@ -241,6 +241,7 @@ class CSAlgo:
         self.ignore_seeds = ignore_seeds
         self.score_db = score_db
         self.to_skip_building = None
+        self.track_beacon_orig = track_beacon_orig
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -309,7 +310,7 @@ class CSAlgo:
             self.is_restartable = True
             for j in range(self.fp_lib.n_files):
                 unique_id = "{}_{}".format(round_n, j)
-                job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler)
+                job = SearchJob(unique_id, beacons, round_n, self.fp_lib, self.chaining_log, j, scheduler=self.scheduler, track_beacon_orig=self.track_beacon_orig)
                 jobs.append(job)
             array_jobid = None
             if self.scheduler == "slurm":

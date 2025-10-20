@@ -29,6 +29,25 @@ def update_results_maxtani(dbfp, query_fps):
         tmp[j] = get_tc(dbfp, query_fps[j])
     return np.max(tmp)
 
+# New function that also returns which beacon was the maxTC (minTD)
+@njit(parallel=True)
+def get_tanimoto_max_excl_idx(query_fps, database_fps, excl):
+    n = len(database_fps)
+    max_tc = np.full(n, -1.0)
+    arg_idx = np.full(n, -1)  # -1 = no result (excluded)
+    for i in prange(n):
+        if not excl[i]:
+            best = -1.0
+            best_j = -1
+            for j in range(len(query_fps)):
+                tc = get_tc(database_fps[i], query_fps[j])
+                if tc > best:
+                    best = tc
+                    best_j = j
+            max_tc[i] = best
+            arg_idx[i] = best_j
+    return max_tc, arg_idx
+
 
 @njit(inline='always')
 def popcnt64(x):

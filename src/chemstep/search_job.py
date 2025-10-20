@@ -1,6 +1,6 @@
 from chemstep.fp_library import FpLibrary
 from chemstep.chaining_log import ChainingLog
-from chemstep.fingerprints import get_tanimoto_max_excl
+from chemstep.fingerprints import get_tanimoto_max_excl, get_tanimoto_max_excl_idx
 from chemstep.utils import read_np_data, mintd_histogram_stream
 import numpy as np
 import pickle
@@ -26,7 +26,7 @@ def run_from_pickle(pickle_path):
 
 class SearchJob:
     def __init__(self, unique_id, beacons_array, round_n, fp_library, chaining_log, library_index,
-                 scheduler=None, chunk_size=200_000):
+                 scheduler=None, chunk_size=200_000, track_beacon_orig=False):
         assert isinstance(fp_library, FpLibrary)
         assert isinstance(chaining_log, ChainingLog)
         self.unique_id = unique_id
@@ -38,18 +38,21 @@ class SearchJob:
         self.scheduler = scheduler
         self.chunk_size = int(chunk_size)
         self.completed = False
+        self.track_beacon_orig = track_beacon_orig
 
     def run_local(self):
         self.run_job()
 
     def run_job(self):
         """Run one shard; optionally print per-chunk timing to stdout (SGE picks it up)."""
-
         fp_path = self.lib.fp_files[self.lib_index]
         excl_path = self.chaining_log.get_filename(
             self.chaining_log.exclusion_prefix, self.chaining_log.get_suffix(self.lib_index))
         mintd_path = self.chaining_log.get_filename(
             self.chaining_log.mintd_prefix, self.chaining_log.get_suffix(self.lib_index))
+        if self.track_beacon_orig:
+            beacon_orig_path = self.chaining_log.get_filename(
+                self.chaining_log.beacon_orig_prefix, self.chaining_log.get_suffix(self.lib_index))
 
         n_mols, fp_len = read_np_data(fp_path).shape
 
@@ -57,7 +60,10 @@ class SearchJob:
         fps = open_memmap(fp_path, dtype=np.uint8,  mode='r',  shape=(n_mols, fp_len))
         exclusions = open_memmap(excl_path, dtype=np.uint8, mode='r',   shape=(n_mols,))
         mintds = open_memmap(mintd_path, dtype=np.float32, mode='r+', shape=(n_mols,))
+        if self.track_beacon_orig:
+            beacon_origs = open_memmap(beacon_orig_path, dtype=np.uint8, mode='r+', shape=(n_mols,2))
 
+        track_beacon_orig = self.track_beacon_orig
         class _Prefetcher:
             """Function-scoped prefetcher; yields (fp_chunk_u64, excl_bool, mintd_view)."""
             def __init__(self, chunk_size, depth=0, ensure_c=True):
@@ -76,11 +82,13 @@ class SearchJob:
                 fp64 = fp_chunk.view(np.uint64).reshape(fp_chunk.shape[0], -1)
                 excl_bool  = (excl_chunk != 0)
                 mint = mintds[s:e]
+                if track_beacon_orig:
+                    beacon_orig = beacon_origs[s:e]
 
                 if self.ensure_c:
                     if not fp64.flags.c_contiguous: fp64 = np.ascontiguousarray(fp64)
                     if not excl_bool.flags.c_contiguous:  excl_bool  = np.ascontiguousarray(excl_bool)
-                return fp64, excl_bool, mint
+                return fp64, excl_bool, mint, beacon_orig # Return range indices
 
             def _submit(self):
                 try:
@@ -102,11 +110,28 @@ class SearchJob:
         # Convert beacons to uint64 for faster TC stuff
         beacons_u64 = self.beacons.view(np.uint64).reshape(self.beacons.shape[0], -1)
 
-        for chunk_idx, (fp_chunk_u64, excl_bool, mintds_c) in enumerate(_Prefetcher(self.chunk_size)):
-            mintd_chunk = 1.0 - get_tanimoto_max_excl(beacons_u64, fp_chunk_u64, excl_bool)
-            mintds_c[:] = np.minimum(mintds_c, mintd_chunk)
+        for chunk_idx, (fp_chunk_u64, excl_bool, mintds_c, beacon_orig_c) in enumerate(_Prefetcher(self.chunk_size)):
+            # New branch if we are keeping track of the beacon of origin
+            if self.track_beacon_orig:
+                max_tc, arg_idx = get_tanimoto_max_excl_idx(beacons_u64, fp_chunk_u64, excl_bool)
+                mintd_chunk = 1.0 - max_tc
+
+                # where this chunk gets lower minTD
+                even_lower = (mintd_chunk < mintds_c) & (arg_idx != -1)
+
+                # update minima
+                mintds_c[:] = np.where(even_lower, mintd_chunk, mintds_c)
+
+                # For beacon_origs, read, modify, write back entire chunk
+                beacon_orig_c[:, 0] = np.where(even_lower, np.uint8(self.round_n), beacon_orig_c[:, 0])
+                beacon_orig_c[:, 1] = np.where(even_lower, arg_idx.astype(np.uint8), beacon_orig_c[:, 1])
+            else:
+                mintd_chunk = 1.0 - get_tanimoto_max_excl(beacons_u64, fp_chunk_u64, excl_bool)
+                mintds_c[:] = np.minimum(mintds_c, mintd_chunk)
 
         mintds.flush()
+        if self.track_beacon_orig:
+            beacon_origs.flush()
         distrib = mintd_histogram_stream(mintds, exclusions, chunk_size=self.chunk_size)
         np.save(
             self.chaining_log.get_filename(

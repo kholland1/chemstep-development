@@ -26,7 +26,7 @@ class ChainingLog:
 
     def __init__(self, fp_library, log_folder, n_proc, exclusion_prefix="excl", mintd_prefix="mintds",
                  mintd_distrib_prefix="mintddistrib", write_empty_files=True,
-                 jobs_folder=None):
+                 jobs_folder=None, beacon_orig_prefix="beaconorig", track_beacon_orig=False):
         """Initialize a :class:`ChainingLog` instance.
 
         Args:
@@ -51,6 +51,8 @@ class ChainingLog:
         self.exclusion_prefix = exclusion_prefix
         self.mintd_prefix = mintd_prefix
         self.mintd_distrib_prefix = mintd_distrib_prefix
+        self.beacon_orig_prefix = beacon_orig_prefix
+        self.track_beacon_orig = track_beacon_orig
 
         if jobs_folder is None:
             self.jobs_folder = "{}/jobs".format(self.log_folder)
@@ -72,14 +74,16 @@ class ChainingLog:
             os.mkdir(self.log_folder)
         if not os.path.isdir(self.jobs_folder):
             os.mkdir(self.jobs_folder)
-        prefixes = [self.exclusion_prefix, self.mintd_prefix, self.mintd_distrib_prefix]
-        shapes = [None, None, 1001]
-        data_types = [np.uint8, np.float32, np.int64]
-        init_vals = [0, 2, 0]
+        prefixes = [self.exclusion_prefix, self.mintd_prefix, self.mintd_distrib_prefix, self.beacon_orig_prefix if self.track_beacon_orig else None]
+        shapes = [None, None, 1001, 'twocol']
+        data_types = [np.uint8, np.float32, np.int64, np.uint8]
+        init_vals = [0, 2, 0, 255]
         args = []
         for i, suffix in enumerate(self.fp_library.suffixes):
             length = self.fp_library.lengths[i]
             for prefix, shape, data_type, init_val in zip(prefixes, shapes, data_types, init_vals):
+                if prefix is None:
+                    continue
                 args.append((shape, length, init_val, data_type, self.get_filename(prefix, suffix)))
         with Pool(self.n_proc) as p:
             p.starmap(_write_one_empty_files_set, args)
@@ -280,6 +284,8 @@ def get_mintd_distrib(mintds):
 
 
 def _write_one_empty_files_set(shape, length, init_val, data_type, filename):
+    if shape == 'twocol':
+        shape = (length, 2)
     if shape is None:
         shape = length
     if init_val != 0:
