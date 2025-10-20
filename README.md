@@ -2,19 +2,19 @@
 
 
 **GitHub instructions**
-1. Ideas for changes are listed in Projects/Chemstep algorithm exploration. Individually or as a team choose an Issue to tackle, and move it into "In progress". Click into the Issue itself and assign it to yourself. Create your own branch of the code based off of the main.
+1. Ideas for changes are listed in Projects/Chemstep algorithm exploration. Individually or as a team choose an Issue to tackle, and move it into "In progress". Click into the Issue itself and assign it to yourself. <b> Create your own branch of the code </b> based off of the main (<b>Important!</b> Click "Create a branch for this issue" like shown in the screenshot).
 
 <img width="327" height="140" alt="Screenshot 2025-10-17 at 12 07 26 PM" src="https://github.com/user-attachments/assets/c5bab9a4-bc10-44ff-81bf-f5f194751109" />
 
 
 
-2. Make edits to the code as needed. Most changes will likely take place in `algo.py` or `search_job.py`. Ideally your changes should be linked to a parameter passed to the main CSAlgo object so that we can try multiple different values. The default behavior if your new parameter is not passed should always be to run the algorithm as it currently exists.
+2. Make edits to the code as needed (see next section). Most changes will likely take place in `algo.py` or `search_job.py`. Ideally your changes should be linked to a parameter passed to the main CSAlgo object so that we can try multiple different values. The default behavior if your new parameter is not passed should always be to run the algorithm as it currently exists.
 
   
 3. Track major changes you make in the comments section of the Issue.
 
 
-**Running ChemSTEP on Wynton**
+**Modifying and Running ChemSTEP on Wynton**
 
 1. Make a directory under your name or team within `/wynton/group/bks/work/chemstep_dev`
 
@@ -26,7 +26,7 @@
      `cd <your_directory>`
 
     
-2. Make a directory for any major change applied (Issue):
+2. Make a directory for any major change applied (Github Issue):
    
 
     `mkdir <name_of_change_applied>`
