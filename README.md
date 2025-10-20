@@ -127,7 +127,7 @@
 **Plotting**
 
 1. First copy the following files into your chemstep folder
-   `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/mor_13M_indices_round_0.npy <your-chemstep-run-folder>`
+   `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/mor_13M_indices_round_0.npy <your-chemstep-run-folder>/indices_round_0.npy`
    
    `cp /wynton/group/bks/work/bwhall61/CHEMSTEP_MEGA_FIXING_FOLDER/scores_round_0.txt <your-chemstep-run-folder>`
    
