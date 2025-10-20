@@ -99,7 +99,7 @@ class AutoDocking(DockingAlgorithm):
             full_index = char_to_int64(lib_id_trunc)
             score = float(score)
             # Insert scores into the database
-            if score_db and score != 100:
+            if score_db and score != 100 and full_index not in indices_skipped:
                 cur.execute("INSERT INTO scored_indices (zid, score, full_index) VALUES (?,?,?)", (lib_id, score, full_index))
             scores[i] = score
             indices[i] = full_index
