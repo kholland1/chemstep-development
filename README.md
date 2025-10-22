@@ -49,7 +49,7 @@
    `git commit -m "Added minTD threshold to SearchJob"`
 
 
-5. Create a python environment for your modified version of ChemSTEP in your base directory:
+5. Create a python environment for your modified version of ChemSTEP in your base directory. Make sure you do not currently have an active venv or conda env. We want to use wynton's base python3 install.
    
     `python3 -m venv <name_of_new_environment>` 
 
