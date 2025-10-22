@@ -162,7 +162,7 @@ class CSAlgo:
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
                  scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False,
-                 score_db=None, track_beacon_orig=False):
+                 score_db=None, track_beacon_orig=False, enforce_n_docked_per_round=False):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -242,6 +242,7 @@ class CSAlgo:
         self.score_db = score_db
         self.to_skip_building = None
         self.track_beacon_orig = track_beacon_orig
+        self.enforce_n_docked_per_round = enforce_n_docked_per_round
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -606,6 +607,14 @@ class CSAlgo:
 
         lib_array_indices = np.concatenate(all_lib_array_indices, axis=0)
         absolute_ids = np.concatenate(all_absolute_ids, axis=0)
+
+        if self.enforce_n_docked_per_round:
+            n_total =  len(lib_array_indices)
+            if n_total > target_n: # First ensure we have enough to sample
+                sel = np.random.choice(n_total, target_n, replace=False)
+                lib_array_indices = lib_array_indices[sel]
+                absolute_ids = absolute_ids[sel]
+                all_smiles = [all_smiles[i] for i in sel]
 
         return lib_array_indices, all_smiles, absolute_ids
         
