@@ -102,7 +102,7 @@ class AutoDocking(DockingAlgorithm):
             score = float(score)
             # Insert scores into the database
             if redis_db_host and redis_db_port and score != 100 and full_index not in indices_skipped:
-                r.hset(full_index, mappping={"zid": lib_id, "score": score})
+                r.hset(full_index, mapping={"zid": lib_id, "score": score})
             scores[i] = score
             indices[i] = full_index
 
