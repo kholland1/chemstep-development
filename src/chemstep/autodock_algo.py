@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 import glob
 import time
-import sqlite3
+import redis
 
 from chemstep.id_helper import char_to_int64
 
@@ -35,7 +35,7 @@ class AutoDocking(DockingAlgorithm):
         self.building_minutes_per_mol = float(getattr(algo_params, "builing_minutes_per_mol", 3))
         self.docking_job_time = getattr(algo_params, "docking_job_time", "8:00:00")
 
-    def dock_all(self, indices_skipped=None, score_db=None):  # TODO: make parallel (low priority)
+    def dock_all(self, indices_skipped=None, redis_db_host=None, redis_db_port=None, redis_password="chemstep"):  # TODO: make parallel (low priority)
 
         cwd = Path.cwd()
         building_dir = (cwd / f"round_{self.round_n}_building").resolve()
@@ -74,13 +74,15 @@ class AutoDocking(DockingAlgorithm):
 
         # Get any precomputed scores
         precomputed_scores = {}
-        if score_db:
-            conn = sqlite3.connect(score_db)
-            cur = conn.cursor()
+        if redis_db_host and redis_db_port:
+            r = redis.Redis(host=redis_db_host, port=redis_db_port, password=redis_password, decode_responses=True) 
+            try:
+                r.ping()
+            except:
+                raise ValueError("Redis server does not seem responsive")
             for full_index in indices_skipped:
-                cur.execute("SELECT zid, score FROM scored_indices WHERE full_index = ?", (full_index,))
-                zid, score = cur.fetchone()
-                precomputed_scores[zid] = score
+                zid, score = r.hmget(full_index, "zid", "score")
+                precomputed_scores[zid] = float(score)
 
         # Get any new score file and combine into the scores_round_*.txt
         outdock_filenames = glob.glob(f'{env["OUTPUT_FOLDER"]}/*/*/OUTDOCK.*')
@@ -99,16 +101,13 @@ class AutoDocking(DockingAlgorithm):
             full_index = char_to_int64(lib_id_trunc)
             score = float(score)
             # Insert scores into the database
-            if score_db and score != 100 and full_index not in indices_skipped:
-                cur.execute("INSERT INTO scored_indices (zid, score, full_index) VALUES (?,?,?)", (lib_id, score, full_index))
+            if redis_db_host and redis_db_port and score != 100 and full_index not in indices_skipped:
+                r.hset(full_index, mappping={"zid": lib_id, "score": score})
             scores[i] = score
             indices[i] = full_index
 
         np.save(f'scores_round_{self.round_n}.npy', scores)
         np.save(f'indices_round_{self.round_n}.npy', indices)
-        if score_db:
-            conn.commit()
-            conn.close()
         self.scores_list = scores
         return indices
 

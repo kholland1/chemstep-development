@@ -17,7 +17,7 @@ from chemstep.bookkeeper import Bookkeeper
 import threading
 import glob
 import time
-import sqlite3
+import redis
 from chemstep.autodock_algo import AutoDocking
 
 def load_from_pickle(fn):
@@ -162,7 +162,7 @@ class CSAlgo:
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
                  scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False,
-                 score_db=None, track_beacon_orig=False, enforce_n_docked_per_round=False):
+                 redis_db_host=None, redis_db_port=None, redis_password="chemstep", track_beacon_orig=False, enforce_n_docked_per_round=False):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -239,10 +239,15 @@ class CSAlgo:
         self.dockfiles_path = dockfiles_path
         self.mintd_search = mintd_search
         self.ignore_seeds = ignore_seeds
-        self.score_db = score_db
+        self.redis_db_host = redis_db_host
+        self.redis_db_port = redis_db_port
+        self.redis_password = redis_password
         self.to_skip_building = None
         self.track_beacon_orig = track_beacon_orig
         self.enforce_n_docked_per_round = enforce_n_docked_per_round
+
+        if (self.redis_db_host is None) != (self.redis_db_port is None):
+            raise ValueError("Both redis_db_host and redis_db_port must be set or both be None")
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -381,10 +386,13 @@ class CSAlgo:
 
         if skip_scored:
             self.to_skip_building = set()
-            if not self.score_db or not os.path.exists(self.score_db):
-                raise ValueError("Skipping already scored molecules requires a score_db")
-            conn = sqlite3.connect(self.score_db)
-            cur = conn.cursor()
+            if not self.redis_db_host or not self.redis_db_port:
+                raise ValueError("Skipping already scored molecules requires a redis_db_port or redis_db_hist")
+            r = redis.Redis(host=self.redis_db_host, port=self.redis_db_port, password=self.redis_password, decode_responses=True)
+            try:
+                r.ping()
+            except:
+                raise ValueError("Redis server does not seem responsive")
 
         abs_out = open(f'{self.info_dir}/absolute_ids_round_{round_n}.txt', 'w')
         abs_out_fe = open(f'{self.info_dir}/absolute_ids_round_{round_n}_already_scored.txt', 'w')
@@ -396,8 +404,7 @@ class CSAlgo:
 
                 # If we want to skip molecules already in the scored database then look for the scores
                 if skip_scored:
-                    cur.execute("SELECT 1 FROM scored_indices WHERE full_index = ? LIMIT 1", (full_index,))
-                    if cur.fetchone() is not None: # If we find a score then move to next molecule (write retrieved smi to new file)
+                    if r.exists(full_index):
                         fe.write(f'{smi} {char_name}\n')
                         abs_out_fe.write(f'{abs_id}\n')
                         self.to_skip_building.add(full_index)
@@ -406,7 +413,6 @@ class CSAlgo:
                 f.write(f'{smi} {char_name}\n')
                 abs_out.write(f'{abs_id}\n')
 
-        conn.close()
         abs_out.close()
         abs_out_fe.close()
 
@@ -650,9 +656,9 @@ class CSAlgo:
         # When writing the smiles for building, we skip ones which already had scores in the database
         # Now when we go to dock, we also need to pull the scores already calculated
         if skip_scored:
-            new_indices = docker.dock_all(self.to_skip_building, self.score_db)
+            new_indices = docker.dock_all(self.to_skip_building, self.redis_db_host, self.redis_db_port, self.redis_password)
         else:
-            new_indices = docker.dock_all(None, None)
+            new_indices = docker.dock_all(None, None, None, None)
         self.print_verbose("'Docking' done")
         new_scores = docker.get_scores_list()
 
