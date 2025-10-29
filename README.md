@@ -108,7 +108,7 @@
       
 11. Submit job to scheduler:
 
-    `qsub launch_chemstep_as_job.sh`
+    `qsub -l h_rt=72:00:00 launch_chemstep_as_job.sh`
 
 12. After submission, also `git push` your changes to github and let Brendan know so he can look over your code while it's running.
 
