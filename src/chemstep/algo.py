@@ -298,6 +298,8 @@ class CSAlgo:
         """
 
         #update self.score_thresh
+        seed_indices = np.load(self.params.seegitd_indices_file)
+        seed_scores = np.load(self.params.seed_scores_file)
         self.set_score_thresh(seed_indices, seed_scores, round_n)
         print(self.score_thresh)
 
@@ -443,7 +445,7 @@ class CSAlgo:
         if score_thresh is None:
             self.set_score_thresh(seed_indices, seed_scores, 1)
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
-                               f"(pProp of {self.params.hit_pprop})") #Oliver-mark-1
+                               f"(pProp of {self.params.hit_pprop})")
         else:
             self.set_score_thresh(seed_indices, seed_scores, 1)  # still important, to remove already docked compounds
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
@@ -766,7 +768,7 @@ class CSAlgo:
         beacons_candidates = [
             (score, idx)
             for idx, score in zip(new_indices, new_scores)
-            if score <= self.score_thresh #Oliver-mark-3
+            if score <= self.score_thresh
         ]
         self.unused_beacons.extend(beacons_candidates)
         self.unused_beacons.sort()  # minimum score is best
