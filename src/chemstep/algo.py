@@ -298,9 +298,9 @@ class CSAlgo:
         """
 
         #update self.score_thresh
-        seed_indices = np.load(self.params.seegitd_indices_file)
+        seed_indices = np.load(self.params.seed_indices_file)
         seed_scores = np.load(self.params.seed_scores_file)
-        self.set_score_thresh(seed_indices, seed_scores, round_n)
+        self.set_score_thresh(seed_indices, seed_scores, round_n - 1)
         print(self.score_thresh)
 
         if round_n > 1:
@@ -443,11 +443,11 @@ class CSAlgo:
         seed_indices = np.load(self.params.seed_indices_file)
         seed_scores = np.load(self.params.seed_scores_file)
         if score_thresh is None:
-            self.set_score_thresh(seed_indices, seed_scores, 1)
+            self.set_score_thresh(seed_indices, seed_scores, 0)
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
         else:
-            self.set_score_thresh(seed_indices, seed_scores, 1)  # still important, to remove already docked compounds
+            self.set_score_thresh(seed_indices, seed_scores, 0)  # still important, to remove already docked compounds
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
             self.score_thresh = score_thresh
