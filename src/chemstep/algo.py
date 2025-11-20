@@ -335,7 +335,7 @@ class CSAlgo:
             if array_jobid is not None:
                 threading.Thread(
                     target=self._cleanup_round_artifacts,
-                    args=(round_n, self.scheduler, array_jobid),
+                    args=(round_n, self.scheduler),
                     daemon=True
                 ).start()
         else:
