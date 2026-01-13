@@ -186,6 +186,7 @@ class CSAlgo:
         self.info_dir = info_dir
         self.docking_method = docking_method
         self.smi_id_prefix = smi_id_prefix
+        self.smi_id_prefix_len = len(smi_id_prefix)
         self.book = Bookkeeper(self.info_dir, self.smi_id_prefix)
         if scheduler is not None:
             if scheduler not in ["slurm", "sge"]:
