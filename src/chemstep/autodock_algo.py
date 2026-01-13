@@ -97,7 +97,7 @@ class AutoDocking(DockingAlgorithm):
 
         for i, line in enumerate(lines):
             lib_id, score = line.strip().split()
-            lib_id_trunc = lib_id[3:]
+            lib_id_trunc = lib_id[self.smi_id_prefix_len:]
             full_index = char_to_int64(lib_id_trunc)
             score = float(score)
             # Insert scores into the database
@@ -194,7 +194,7 @@ class AutoDocking(DockingAlgorithm):
 
             time.sleep(poll_interval)
 
-    def get_outdock_score_dict(self, outdock_fn, mol_id_prefix='MOL', undocked_score=100):
+    def get_outdock_score_dict(self, outdock_fn, undocked_score=100):
         with open(outdock_fn) as f:
             lines = f.readlines()
         i = 0
@@ -202,7 +202,7 @@ class AutoDocking(DockingAlgorithm):
         while i < len(lines):
             line = lines[i]
             ll = line.split()
-            if len(ll) >= 2 and ll[1].startswith(mol_id_prefix):
+            if len(ll) >= 2 and ll[1].startswith(self.smi_id_prefix):
                 zincid = ll[1]
                 try:
                     score = float(ll[-1])
