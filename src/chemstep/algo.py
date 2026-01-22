@@ -162,7 +162,7 @@ class CSAlgo:
                  pickle_prefix="chemstep_algo", verbose=False, skip_setup=False, info_dir=None, docking_method="manual",
                  smi_id_prefix="CSLB", scheduler=None, python_exec=None, slurm_options=None, sge_options=None,
                  scores_fns=None, slurm_node_array=False, slurm_tasks_per_node=64, use_logfile=True, max_reruns=5, dockfiles_path=None, mintd_search=0, ignore_seeds=False,
-                 redis_db_host=None, redis_db_port=None, redis_password="chemstep", track_beacon_orig=False, enforce_n_docked_per_round=False):
+                 redis_db_host=None, redis_db_port=None, redis_password="chemstep", track_beacon_orig=False, enforce_n_docked_per_round=False, skip_scored=False):
         os.makedirs(output_directory, exist_ok=True)
         self.output_directory = output_directory
         if use_pickle:
@@ -249,6 +249,11 @@ class CSAlgo:
 
         if (self.redis_db_host is None) != (self.redis_db_port is None):
             raise ValueError("Both redis_db_host and redis_db_port must be set or both be None")
+
+        self.skip_scored = skip_scored
+        if self.skip_scored:
+            if self.redis_db_host is None or self.redis_db_port is None:
+                raise ValueError("skip_scored=True requires redis_db_host and redis_db_port to be set")
 
     def print_verbose(self, s):
         """Print a message only if ``verbose`` is enabled.
@@ -354,9 +359,9 @@ class CSAlgo:
             self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids)
             new_indices, new_scores = None, None
         elif self.docking_method == "auto":
-            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids, skip_scored=True)
+            self.write_smi_file(smi_list, lib_array_indices, round_n, absolute_ids, skip_scored=self.skip_scored)
             smi_file_path = "{}/smi_round_{}.smi".format(self.info_dir, round_n)
-            new_indices, new_scores = self.auto_dock(lib_array_indices, smi_list, round_n, smi_file_path, skip_scored=True)
+            new_indices, new_scores = self.auto_dock(lib_array_indices, smi_list, round_n, smi_file_path, skip_scored=self.skip_scored)
         else:
             raise ValueError(f"Docking method {self.docking_method} not yet implemented")
 
