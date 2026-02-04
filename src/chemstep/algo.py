@@ -654,7 +654,7 @@ class CSAlgo:
         """
         self.print_verbose("About to start building")
         
-        docker = AutoDocking(lib_array_indices, smi_list, self.fp_lib, smi_file_path, round_n, self.dockfiles_path, self.params, verbose=self.verbose)
+        docker = AutoDocking(lib_array_indices, smi_list, self.fp_lib, smi_file_path, round_n, self.dockfiles_path, self.params, verbose=self.verbose, smi_id_prefix=self.smi_id_prefix)
         docker.build_all()
         self.print_verbose("Building Done")
 
