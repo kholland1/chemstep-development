@@ -35,6 +35,7 @@ class AutoDocking(DockingAlgorithm):
         self.building_minutes_per_mol = float(getattr(algo_params, "builing_minutes_per_mol", 3))
         self.docking_job_time = getattr(algo_params, "docking_job_time", "8:00:00")
         self.smi_id_prefix = smi_id_prefix 
+        self.smi_id_prefix_len = len(smi_id_prefix)
 
     def dock_all(self, indices_skipped=None, redis_db_host=None, redis_db_port=None, redis_password="chemstep"):  # TODO: make parallel (low priority)
 
