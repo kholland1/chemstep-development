@@ -23,7 +23,7 @@ from chemstep.id_helper import char_to_int64
 
 class AutoDocking(DockingAlgorithm):
 
-    def __init__(self, lib_array_indices, smi_list, fp_lib, smi_file_path, round_n, dockfiles_path, algo_params, verbose=False):
+    def __init__(self, lib_array_indices, smi_list, fp_lib, smi_file_path, round_n, dockfiles_path, algo_params, verbose=False, smi_id_refix="CSLB"):
         super().__init__(lib_array_indices, smi_list)
         assert isinstance(fp_lib, FpLibrary)
         self.lib_arr_indices = lib_array_indices
