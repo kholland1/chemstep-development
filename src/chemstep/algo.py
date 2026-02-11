@@ -302,13 +302,6 @@ class CSAlgo:
         RuntimeError
             If array jobs did not complete successfully.
         """
-
-        #update self.score_thresh
-        seed_indices = np.load(self.params.seed_indices_file)
-        seed_scores = np.load(self.params.seed_scores_file)
-        self.set_score_thresh(seed_indices, seed_scores, round_n - 1)
-        print(self.score_thresh)
-
         if round_n > 1:
             n_hits = int(np.sum(new_scores <= self.score_thresh))
             beacon_ids = [b[1] for b in self.current_beacons]
@@ -449,11 +442,11 @@ class CSAlgo:
         seed_indices = np.load(self.params.seed_indices_file)
         seed_scores = np.load(self.params.seed_scores_file)
         if score_thresh is None:
-            self.set_score_thresh(seed_indices, seed_scores, 0)
+            self.set_score_thresh(seed_indices, seed_scores)
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
         else:
-            self.set_score_thresh(seed_indices, seed_scores, 0)  # still important, to remove already docked compounds
+            self.set_score_thresh(seed_indices, seed_scores)  # still important, to remove already docked compounds
             self.print_verbose(f"Automatically set score threshold to {self.score_thresh:.2f} " +
                                f"(pProp of {self.params.hit_pprop})")
             self.score_thresh = score_thresh
@@ -719,7 +712,7 @@ class CSAlgo:
                 f.write(f"{full_id} {score}\n")
         return new_indices, new_scores
 
-    def set_score_thresh(self, seed_indices, seed_scores, round_n):
+    def set_score_thresh(self, seed_indices, seed_scores):
         """Compute and store the docking score threshold; exclude seeds.
 
         The threshold is the quantile ``10^(−hit_pprop)`` over
@@ -732,13 +725,11 @@ class CSAlgo:
             Full indices of seed molecules (``FpLibrary`` indexing).
         seed_scores : np.ndarray
             Docking scores aligned to ``seed_indices``.
-        round_n : int
-            1‑based round index.
         """
         lib_arr_indices = np.zeros((len(seed_scores), 2), dtype=np.int64)
         for i, seed_index in enumerate(seed_indices):
             lib_arr_indices[i] = self.fp_lib.get_lib_array_indices(seed_index)
-        self.score_thresh = np.quantile(seed_scores, 10**(-1 * self.params.hit_pprop - round_n / 10)) #make dynamic function later
+        self.score_thresh = np.quantile(seed_scores, 10**(-1 * self.params.hit_pprop))
 
         lib_arr_dict = dict()
         for lib_i, arr_i in lib_arr_indices:
